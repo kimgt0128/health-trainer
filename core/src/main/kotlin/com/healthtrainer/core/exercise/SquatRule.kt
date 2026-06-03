@@ -61,6 +61,15 @@ class SquatRule : ExerciseRule {
     }
 
     /**
+     * Rep-segmentation descent: looser than the good-form BOTTOM band (<= [BOTTOM_MAX_KNEE_ANGLE])
+     * so a shallow squat still counts as a rep attempt and is later recorded as a depth failure.
+     */
+    override fun isDescent(feedback: ExerciseFeedback): Boolean {
+        val knee = feedback.metrics["kneeAngle"] ?: return false
+        return knee < REP_DESCENT_MAX_KNEE_ANGLE
+    }
+
+    /**
      * Averages the angle over the sides whose three joints are all confidently visible
      * (`>= MIN_VISIBILITY`). Returns `null` when no side is fully visible.
      */
@@ -96,6 +105,15 @@ class SquatRule : ExerciseRule {
 
         /** Depth failure when the rep's minimum knee angle stays above this (pose-rule-authoring). */
         const val DEPTH_MAX_KNEE_ANGLE = 120f
+
+        /**
+         * Tracker rep-segmentation threshold: a frame counts as a descent when the knee angle drops
+         * below this. Deliberately LOOSER than the good-form BOTTOM band ([BOTTOM_MAX_KNEE_ANGLE] =
+         * 110) and the depth-failure cutoff ([DEPTH_MAX_KNEE_ANGLE] = 120) so a shallow rep
+         * (min knee ~130) is still counted, then recorded as SQUAT_DEPTH_NOT_ENOUGH. MVP default;
+         * tune with real footage. (pose-rule-authoring "rep state machine과의 계약")
+         */
+        const val REP_DESCENT_MAX_KNEE_ANGLE = 140f
 
         private val KNEE_TRIPLES = listOf(
             Triple(LandmarkName.LEFT_HIP, LandmarkName.LEFT_KNEE, LandmarkName.LEFT_ANKLE),

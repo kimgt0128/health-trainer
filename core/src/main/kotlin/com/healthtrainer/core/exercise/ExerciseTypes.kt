@@ -76,4 +76,18 @@ interface ExerciseRule {
 
     /** Apply rep-level policy over a completed rep's per-frame feedbacks -> hard-failure codes. */
     fun aggregateRep(frameFeedbacks: List<ExerciseFeedback>): Set<FeedbackCode>
+
+    /**
+     * Whether this frame counts as "at the top" for rep segmentation (the tracker counts a rep on
+     * TOP -> descent -> TOP). Default: [ExerciseFeedback.phase] == [MovementPhase.TOP].
+     */
+    fun isTop(feedback: ExerciseFeedback): Boolean = feedback.phase == MovementPhase.TOP
+
+    /**
+     * Whether the user has descended enough to count a rep *attempt*. This is intentionally LOOSER
+     * than the good-form BOTTOM band so that shallow (bad-depth) reps are still counted and then
+     * recorded as failures — see the "rep state machine과의 계약" section of the pose-rule-authoring
+     * skill. Default: [ExerciseFeedback.phase] == [MovementPhase.BOTTOM].
+     */
+    fun isDescent(feedback: ExerciseFeedback): Boolean = feedback.phase == MovementPhase.BOTTOM
 }

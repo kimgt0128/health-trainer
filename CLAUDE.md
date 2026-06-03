@@ -13,6 +13,7 @@
 |------|----------|------|------|
 | 2026-06-03 | 초기 구성 (에이전트 5 + 스킬 3) | 전체 | READ.md/plan.md 기반 하네스 구축 |
 | 2026-06-03 | 에이전트에 Skill 도구 추가 | agents/*.md | 디스패치된 서브에이전트가 참조 스킬(superpowers + 로컬)을 로드 가능하도록 |
+| 2026-06-03 | 모델 학습 트랙 추가 (`ml/` 순수-Python TDD 코어 64 tests green + 프로젝트 스코프 MCP + ml 에이전트 4) | `ml/`, `.mcp.json`, `.claude/mcp`, `.claude/agents/ml-*.md` | `docs/model-training-plan.md` 병렬 구현; feature 계약을 앱 `:core`와 일치시켜 inference 드리프트 방지 |
 
 ## 환경 현실 (매 세션 유의)
 - 이 머신: **JDK 17 있음, Android SDK 없음.**

@@ -26,5 +26,8 @@ _workspace/
 # MCP / tooling caches
 .serena/
 
+# Claude Code native worktrees (isolated per-slice workspaces)
+.claude/worktrees/
+
 # MediaPipe model bundle (large binary; downloaded at build time)
 app/src/main/assets/*.task

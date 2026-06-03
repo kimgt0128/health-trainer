@@ -1,0 +1,30 @@
+# Gradle
+.gradle/
+**/build/
+
+# Android
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# Kotlin / JVM
+*.hprof
+
+# Orchestrator scratch (intermediate artifacts, not project deliverables)
+_workspace/
+
+# MCP / tooling caches
+.serena/
+
+# MediaPipe model bundle (large binary; downloaded at build time)
+app/src/main/assets/*.task

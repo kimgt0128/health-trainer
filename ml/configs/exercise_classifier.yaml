@@ -1,0 +1,43 @@
+# Exercise-type classifier config (squat / push_up / plank / unknown).
+# This IS the feature_config.json contract shared with the Android :core app.
+task: exercise_classifier
+sequence_length: 60
+stride: 30
+
+labels:
+  0: squat
+  1: push_up
+  2: plank
+  3: unknown
+
+landmarks:
+  - left_shoulder
+  - right_shoulder
+  - left_elbow
+  - right_elbow
+  - left_wrist
+  - right_wrist
+  - left_hip
+  - right_hip
+  - left_knee
+  - right_knee
+  - left_ankle
+  - right_ankle
+
+per_landmark_features: [x, y, z, visibility]
+
+angle_features:
+  - left_knee_angle
+  - right_knee_angle
+  - left_elbow_angle
+  - right_elbow_angle
+  - body_line_angle
+
+normalization:
+  center: hip_center
+  scale: shoulder_width
+
+model:
+  baseline: random_forest        # local CPU
+  sequence: lstm                 # Colab; 64 hidden units, Dense 32
+  integration_min_macro_f1: 0.80 # docs/colab-drive-workflow.md Integration Decision Rule

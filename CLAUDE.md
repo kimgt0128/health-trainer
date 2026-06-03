@@ -1,0 +1,21 @@
+# Health Trainer
+
+스마트폰 카메라로 관절 좌표를 추정하고 rule-based로 스쿼트·푸쉬업·플랭크 자세를 판정하는 Android 컴퓨터비전 앱. 세트별 실패 회차 기록 + 3D 스켈레톤 replay. 배경은 `READ.md`, 작업 계획은 `docs/plan.md`.
+
+## 하네스: Health Trainer 개발
+
+**목표:** 검증 가능한 `:core` 도메인 로직(TDD)과 `:app` Android 골격을 MVP 슬라이스 단위로 체계적으로 쌓아 올린다.
+
+**트리거:** Health Trainer 기능 구현·MVP 진행·새 슬라이스 추가·이전 슬라이스 보완/재실행·워크트리 작업을 요청하면 `mvp-pipeline` 스킬을 사용하라. 단순 질문(개념 설명 등)은 직접 응답 가능.
+
+**변경 이력:**
+| 날짜 | 변경 내용 | 대상 | 사유 |
+|------|----------|------|------|
+| 2026-06-03 | 초기 구성 (에이전트 5 + 스킬 3) | 전체 | READ.md/plan.md 기반 하네스 구축 |
+
+## 환경 현실 (매 세션 유의)
+- 이 머신: **JDK 17 있음, Android SDK 없음.**
+- `:core`(순수 Kotlin/JVM) → `./gradlew :core:test`로 **실제 검증됨**. 도메인 로직은 모두 여기.
+- `:app`(Android: Compose/CameraX/MediaPipe) → **디바이스 필요, 미검증.** 미검증 항목은 항상 `unverified (requires device)`로 표기한다.
+- `:core`에 `android.*`/`androidx.*`/MediaPipe import 금지(순수성). 의존 방향은 `:app → :core` 단방향.
+- `settings.gradle.kts`는 Android SDK가 있을 때만 `:app`을 포함한다(SDK 없는 환경에서 `:core:test`가 막히지 않도록).

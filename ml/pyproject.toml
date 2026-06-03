@@ -1,0 +1,21 @@
+[project]
+name = "healthtrainer-ml"
+version = "0.1.0"
+description = "Health Trainer model-training track: pose-landmark feature engineering + baseline classifiers."
+requires-python = ">=3.11"
+# Local CPU dependencies only. Heavy Colab-only libs (mediapipe, tensorflow) live in
+# requirements-colab.txt and are imported lazily so the local test suite never needs them.
+dependencies = [
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+# src layout without a build backend: make the package importable + only collect tests/.
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"

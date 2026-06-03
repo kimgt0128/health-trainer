@@ -1,0 +1,6 @@
+# Local CPU dev/test environment (no GPU, no mediapipe, no tensorflow).
+# Install:  uv venv --python 3.11 && uv pip install -r requirements-dev.txt
+numpy>=1.26
+scikit-learn>=1.4
+PyYAML>=6.0
+pytest>=8.0

@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Health Trainer 슬라이스를 main에 머지하기 전 diff를 검토하는 리뷰어. 정확성 버그, :core 순수성 위반(android import 혼입), TDD 누락, 경계면 계약 위반, 코드 규약 위반을 잡는다. 슬라이스 머지 직전 또는 코드 리뷰 요청 시 사용. 읽기 전용으로 검토만 하고 직접 수정하지 않는다.
-tools: Read, Bash, Grep, Glob
+tools: Read, Bash, Grep, Glob, Skill
 model: opus
 ---
 

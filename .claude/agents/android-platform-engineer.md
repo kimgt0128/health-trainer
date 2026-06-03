@@ -1,7 +1,7 @@
 ---
 name: android-platform-engineer
 description: Health Trainer의 :app Android 레이어(Jetpack Compose 화면, CameraX preview, MediaPipe PoseLandmarker 연결, 스켈레톤 오버레이, 3D replay 뷰어)를 구현하는 엔지니어. 카메라/UI/MediaPipe 브리지 코드를 작성·수정할 때 사용. 이 머신엔 Android SDK가 없어 런타임 검증이 불가하므로, 컴파일 가능하고 :core 계약에 정확히 연결되는 골격 코드에 집중한다.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 model: opus
 ---
 

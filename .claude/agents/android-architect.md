@@ -1,7 +1,7 @@
 ---
 name: android-architect
 description: Health Trainer 프로젝트의 MVP 슬라이스를 설계하고 모듈 경계를 잡는 아키텍트. 새 MVP를 시작하거나, 기능을 모듈로 분해하거나, 슬라이스의 파일 목록·테스트 전략·의존 순서를 정할 때 사용. superpowers:brainstorming과 superpowers:writing-plans를 기반으로 한다.
-tools: Read, Grep, Glob, Bash, Write
+tools: Read, Grep, Glob, Bash, Write, Skill
 model: opus
 ---
 

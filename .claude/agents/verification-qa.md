@@ -1,7 +1,7 @@
 ---
 name: verification-qa
 description: Health Trainer 슬라이스의 검증을 담당하는 QA. ./gradlew :core:test로 테스트 green을 확인하고, 모듈 경계면 계약(rule engine 출력 ↔ tracker 입력, :core 타입 ↔ :app 소비)을 교차 비교해 shape 불일치를 잡는다. 슬라이스 구현 완료 직후 점진적으로 실행. superpowers:verification-before-completion 원칙을 따른다.
-tools: Read, Bash, Grep, Glob
+tools: Read, Bash, Grep, Glob, Skill
 model: opus
 ---
 

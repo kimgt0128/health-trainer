@@ -121,6 +121,30 @@ class SetTrackerTest {
         assertThat(session.sets[1].reps[1].repNo).isEqualTo(2)
     }
 
+    @Test
+    fun onFrame_returnsClosedRepAndExposesLiveCount() {
+        // Live rep counter for the UI: onFrame returns the just-closed rep (with set/rep numbers)
+        // or null, and currentRepCount / currentSetReps reflect progress mid-set.
+        val tracker = SetTracker(SquatRule())
+        tracker.startSet()
+        assertThat(tracker.currentRepCount).isEqualTo(0)
+
+        assertThat(tracker.onFrame(standing(0))).isNull()
+        assertThat(tracker.onFrame(deep(100))).isNull()
+        val closed = tracker.onFrame(standing(200)) // closing "standing" completes rep 1
+        assertThat(closed).isNotNull()
+        assertThat(closed!!.setNo).isEqualTo(1)
+        assertThat(closed.repNo).isEqualTo(1)
+        assertThat(tracker.currentRepCount).isEqualTo(1)
+        assertThat(tracker.currentSetReps).hasSize(1)
+
+        assertThat(tracker.onFrame(deep(300))).isNull() // mid-rep -> no close
+        assertThat(tracker.currentRepCount).isEqualTo(1)
+
+        tracker.endSet()
+        assertThat(tracker.currentRepCount).isEqualTo(0) // no set open
+    }
+
     // --- Plank frames ------------------------------------------------------------------------
 
     private fun plankFrame(

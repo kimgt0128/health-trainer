@@ -7,7 +7,8 @@ import com.healthtrainer.core.pose.PoseFrame
 /**
  * Drives an exercise session: groups frames into sets and produces an [ExerciseSession].
  *
- * Usage: [startSet], feed frames with [onFrame], [endSet]; repeat per set; then [build].
+ * Usage: [startSet], feed frames with [onFrame], [endSet]; repeat per set; then [build]. During a
+ * set, [currentRepCount] / [currentSetReps] expose live progress for the UI rep counter.
  *
  * - **Rep-counted exercises (squat / push-up):** within a set, frames feed a fresh
  *   [RepStateMachine]. Each completed rep is numbered with a 1-based [RepRecord.setNo] (incrementing
@@ -40,17 +41,27 @@ class SetTracker(private val rule: ExerciseRule) {
         repMachine = if (isHold) null else RepStateMachine(rule)
     }
 
-    /** Feed one frame into the current set. No-op if no set is open. */
-    fun onFrame(frame: PoseFrame) {
-        if (!inSet) return
+    /**
+     * Feed one frame into the current set. Returns the [RepRecord] just closed by this frame
+     * (rep-counted exercises), or null if no rep closed, no set is open, or this is a hold.
+     */
+    fun onFrame(frame: PoseFrame): RepRecord? {
+        if (!inSet) return null
         if (isHold) {
             holdFrames.add(frame)
-        } else {
-            repMachine?.onFrame(frame)?.let { data ->
-                currentReps.add(data.toRecord(setNo = currentSetNo, repNo = currentReps.size + 1))
-            }
+            return null
         }
+        val data = repMachine?.onFrame(frame) ?: return null
+        val record = data.toRecord(setNo = currentSetNo, repNo = currentReps.size + 1)
+        currentReps.add(record)
+        return record
     }
+
+    /** Reps closed so far in the in-progress set (live snapshot for the UI). Empty when no set is open. */
+    val currentSetReps: List<RepRecord> get() = if (inSet) currentReps.toList() else emptyList()
+
+    /** Count of reps closed so far in the in-progress set (live rep counter). 0 when no set is open. */
+    val currentRepCount: Int get() = if (inSet) currentReps.size else 0
 
     /** Finalize the current set, appending it (with its reps) to the session. */
     fun endSet() {

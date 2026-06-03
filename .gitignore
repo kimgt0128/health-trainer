@@ -31,3 +31,4 @@ _workspace/
 
 # MediaPipe model bundle (large binary; downloaded at build time)
 app/src/main/assets/*.task
+.claude/mcp/.venv/

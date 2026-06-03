@@ -13,6 +13,7 @@
 |------|----------|------|------|
 | 2026-06-03 | 초기 구성 (에이전트 5 + 스킬 3) | 전체 | READ.md/plan.md 기반 하네스 구축 |
 | 2026-06-03 | 에이전트에 Skill 도구 추가 | agents/*.md | 디스패치된 서브에이전트가 참조 스킬(superpowers + 로컬)을 로드 가능하도록 |
+| 2026-06-03 | rule↔tracker 계약 정정 (rep 유효성=aggregateRep 단독, 느슨한 descent 카운트, 보이는-프레임 분모) | skills/pose-rule-authoring | mvp-2 code-reviewer 피드백 반영 |
 
 ## 환경 현실 (매 세션 유의)
 - 이 머신: **JDK 17 있음, Android SDK 없음.**

@@ -74,6 +74,15 @@ class PushUpRule : ExerciseRule {
         }
     }
 
+    /**
+     * Rep-segmentation descent: looser than the good-form BOTTOM band (<= [BOTTOM_MAX_ELBOW_ANGLE])
+     * so a shallow push-up still counts as a rep attempt and is later recorded as a depth failure.
+     */
+    override fun isDescent(feedback: ExerciseFeedback): Boolean {
+        val elbow = feedback.metrics["elbowAngle"] ?: return false
+        return elbow < REP_DESCENT_MAX_ELBOW_ANGLE
+    }
+
     /** Averages the angle over the sides whose three joints are all confidently visible. */
     private fun averagedAngle(frame: PoseFrame, triples: List<Triple<LandmarkName, LandmarkName, LandmarkName>>): Float? {
         val angles = triples.mapNotNull { (a, b, c) -> sideAngle(frame, a, b, c) }
@@ -106,6 +115,15 @@ class PushUpRule : ExerciseRule {
 
         /** Depth failure when the rep's minimum elbow angle stays above this (pose-rule-authoring). */
         const val DEPTH_MAX_ELBOW_ANGLE = 105f
+
+        /**
+         * Tracker rep-segmentation threshold: a frame counts as a descent when the elbow angle drops
+         * below this. Deliberately LOOSER than the good-form BOTTOM band ([BOTTOM_MAX_ELBOW_ANGLE] =
+         * 100) and the depth-failure cutoff ([DEPTH_MAX_ELBOW_ANGLE] = 105) so a shallow rep
+         * (min elbow ~120) is still counted, then recorded as PUSH_UP_DEPTH_NOT_ENOUGH. MVP default;
+         * tune with real footage. (pose-rule-authoring "rep state machine과의 계약")
+         */
+        const val REP_DESCENT_MAX_ELBOW_ANGLE = 130f
 
         /** Rep-level body-line failure when the broken-frame share exceeds this (pose-rule-authoring). */
         const val BODY_LINE_BROKEN_FRAME_RATIO = 0.30f

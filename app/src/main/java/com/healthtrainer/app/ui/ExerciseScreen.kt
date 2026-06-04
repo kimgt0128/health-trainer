@@ -22,15 +22,19 @@ import com.healthtrainer.app.camera.CameraPreview
 import com.healthtrainer.app.MainViewModel
 import com.healthtrainer.app.pose.PoseLandmarkerHelper
 import com.healthtrainer.core.exercise.ExerciseType
-import com.healthtrainer.core.exercise.FeedbackCode
 
 /**
- * Top-level live training screen: exercise selector (squat / push-up / plank), the camera preview
- * with the skeleton overlay, the live rep counter, the live feedback text, and Start/End-set +
- * Finish controls. Observes [MainViewModel] state.
+ * Top-level live training screen: exercise selector, the camera preview with the skeleton overlay, the
+ * live rep/hold indicator, the live feedback text, and Start/End-set + Finish controls.
  *
- * NOTE (requires device): the camera preview, overlay rendering, and live updates are unverified on
- * an SDK-less machine. The composable structure and the ViewModel wiring are inspectable.
+ * Pure presentation: it observes the single immutable [ExerciseUiState] and hoists every event (chip
+ * select, set start/end, finish) up to [MainViewModel]. No business logic, no `when(exerciseType)` and
+ * no `== ExerciseType.PLANK` branch lives here — the hold indicator reads [ExerciseUiState.isHold] and
+ * the live message is derived by the state. The selector iterates [ExerciseType.entries] and asks
+ * [ExerciseUiText] for each label, so a new exercise needs no edit to this file.
+ *
+ * NOTE (requires device): the camera preview, overlay rendering, and live updates are unverified on an
+ * SDK-less machine. The composable structure and the ViewModel wiring are inspectable.
  *
  * @param onFinish invoked after the session is built (navigates to the result screen).
  */
@@ -41,16 +45,12 @@ fun ExerciseScreen(
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val selected = viewModel.selectedExercise
-    val feedback = viewModel.liveFeedback
-    val overlay = viewModel.overlayLandmarks
-    val repCount = viewModel.repCount
-    val isSetActive = viewModel.isSetActive
+    val state = viewModel.uiState
 
     Column(modifier = modifier.fillMaxSize().padding(12.dp)) {
         ExerciseSelector(
-            selected = selected,
-            enabled = !isSetActive,
+            selected = state.selectedExercise,
+            enabled = !state.isSetActive,
             onSelect = viewModel::selectExercise,
         )
 
@@ -63,17 +63,17 @@ fun ExerciseScreen(
         ) {
             CameraPreview(helper = helper, modifier = Modifier.fillMaxSize())
             SkeletonOverlay(
-                landmarks = overlay,
-                feedback = feedback,
+                landmarks = state.overlayLandmarks,
+                feedback = state.liveFeedback,
                 modifier = Modifier.fillMaxSize(),
             )
         }
 
-        LiveStats(repCount = repCount, isPlank = selected == ExerciseType.PLANK)
-        LiveFeedbackText(viewModel = viewModel)
+        LiveStats(text = state.statsLine)
+        LiveFeedbackText(message = state.liveMessage, color = state.overlayColor)
 
         SetControls(
-            isSetActive = isSetActive,
+            isSetActive = state.isSetActive,
             onStart = viewModel::startSet,
             onEnd = viewModel::endSet,
             onFinish = {
@@ -94,21 +94,20 @@ private fun ExerciseSelector(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // Data-driven over the registry's types; the label comes from the presentation catalog.
         ExerciseType.entries.forEach { type ->
             FilterChip(
                 selected = selected == type,
                 enabled = enabled,
                 onClick = { onSelect(type) },
-                label = { Text(exerciseLabel(type)) },
+                label = { Text(ExerciseUiText.label(type)) },
             )
         }
     }
 }
 
 @Composable
-private fun LiveStats(repCount: Int, isPlank: Boolean) {
-    // Plank has no rep count (single hold); show a hold indicator instead.
-    val text = if (isPlank) "플랭크 유지 중" else "반복 횟수: $repCount"
+private fun LiveStats(text: String) {
     Text(
         text = text,
         fontSize = 28.sp,
@@ -118,22 +117,7 @@ private fun LiveStats(repCount: Int, isPlank: Boolean) {
 }
 
 @Composable
-private fun LiveFeedbackText(viewModel: MainViewModel) {
-    val feedback = viewModel.liveFeedback
-    val color: Color = SkeletonGraphics.overlayColor(feedback)
-
-    // Show the most relevant live message: hard failure > soft warning > low-confidence > OK.
-    val message = when {
-        feedback == null -> "자세를 인식하는 중..."
-        feedback.hardFailures.isNotEmpty() ->
-            feedback.hardFailures.joinToString("·") { FeedbackText.label(it) }
-        (feedback.softWarnings - FeedbackCode.LOW_CONFIDENCE).isNotEmpty() ->
-            (feedback.softWarnings - FeedbackCode.LOW_CONFIDENCE)
-                .joinToString("·") { FeedbackText.label(it) }
-        viewModel.isLowConfidence(feedback) -> FeedbackText.label(FeedbackCode.LOW_CONFIDENCE)
-        else -> "좋은 자세입니다"
-    }
-
+private fun LiveFeedbackText(message: String, color: Color) {
     Text(
         text = message,
         color = color,
@@ -161,10 +145,4 @@ private fun SetControls(
         }
         Button(onClick = onFinish, modifier = Modifier.weight(1f)) { Text("운동 완료") }
     }
-}
-
-private fun exerciseLabel(type: ExerciseType): String = when (type) {
-    ExerciseType.SQUAT -> "스쿼트"
-    ExerciseType.PUSH_UP -> "푸쉬업"
-    ExerciseType.PLANK -> "플랭크"
 }

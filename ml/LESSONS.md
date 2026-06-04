@@ -48,3 +48,22 @@ Format per entry: **What happened → Why → Rule.**
 - **Rule:** Mirror `:core` constants exactly (visibility `0.55`, angle tolerance `0.5°`,
   hip-center translate + shoulder-width scale). The `feature_config.json` is the single
   contract; `contract.py` validates it and the artifact set on both sides.
+
+## L5 — On this balanced tabular data, the *model family* beat any RF tuning
+- **What:** Squat-form baseline (RandomForest) hit acc 0.884 / macroF1 0.883, with
+  `asymmetric_squat` the weak class (recall 0.63, mostly mislabeled `correct`). A Colab
+  tuning sweep (seed 42, same split) compared RF variants vs HistGradientBoosting:
+  | model | acc | macroF1 | asym_recall |
+  |---|---|---|---|
+  | RF 100 (baseline) | 0.884 | 0.883 | 0.629 |
+  | RF 300 | 0.887 | 0.885 | 0.634 |
+  | RF 300 balanced_subsample | 0.888 | 0.887 | 0.633 |
+  | RF 400 leaf2 sqrt | 0.887 | 0.885 | 0.631 |
+  | **HistGradientBoosting** | **0.940** | **0.939** | **0.765** |
+- **Why:** Classes were already balanced (~1581 each), so `class_weight`/more-trees barely
+  moved the needle — `asymmetric_squat` was a *separability* problem. Gradient boosting
+  captured the `correct`↔`asymmetric` boundary that bagged trees could not.
+- **Rule:** When per-class counts are balanced and one class is weak, don't reach for
+  `class_weight` first — try a different model family. HGB is now the default in
+  `train_squat_form_classifier.py` (`--model hgb`); RF stays available as `--model rf`.
+  Feature importances: knee angles (L/R) + `torso_lean` dominate; `symmetry_score` lowest.

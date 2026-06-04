@@ -1,6 +1,7 @@
 package com.healthtrainer.core.tracker
 
 import com.google.common.truth.Truth.assertThat
+import com.healthtrainer.core.exercise.ExerciseMode
 import com.healthtrainer.core.exercise.ExerciseType
 import com.healthtrainer.core.exercise.FeedbackCode
 import com.healthtrainer.core.exercise.PlankRule
@@ -197,5 +198,39 @@ class SetTrackerTest {
         tracker.endSet()
         val session = tracker.build(startedAtMs = 0L)
         assertThat(session.sets[0].reps).isEmpty()
+    }
+
+    // --- Mode-driven dispatch (no PLANK literal in the tracker) -------------------------------
+
+    @Test
+    fun repCountedRule_segmentsRepsPerFrame() {
+        // The tracker rep-counts because the rule's mode is REP_COUNTED (SquatRule), not because of
+        // any ExerciseType check: each completed rep closes on its own frame via onFrame.
+        val rule = SquatRule()
+        assertThat(rule.mode).isEqualTo(ExerciseMode.REP_COUNTED)
+        val tracker = SetTracker(rule)
+        tracker.startSet()
+        threeRepSquatSet().forEach { tracker.onFrame(it) }
+        tracker.endSet()
+        val session = tracker.build(startedAtMs = 0L)
+        // Three reps, each its own record (rep-counted behavior).
+        assertThat(session.sets[0].reps).hasSize(3)
+    }
+
+    @Test
+    fun holdRule_producesSingleRecordRegardlessOfFrameCount() {
+        // The tracker collects frames and judges one hold because the rule's mode is HOLD
+        // (PlankRule). onFrame never closes a rep mid-hold; the single record appears at endSet.
+        val rule = PlankRule()
+        assertThat(rule.mode).isEqualTo(ExerciseMode.HOLD)
+        val tracker = SetTracker(rule)
+        tracker.startSet()
+        val frames = listOf(saggingPlank(0), saggingPlank(100), saggingPlank(200))
+        frames.forEach { assertThat(tracker.onFrame(it)).isNull() } // hold never closes per-frame
+        tracker.endSet()
+        val session = tracker.build(startedAtMs = 0L)
+        // Many frames -> exactly one hold record (hold behavior).
+        assertThat(session.sets[0].reps).hasSize(1)
+        assertThat(session.sets[0].reps[0].repNo).isEqualTo(1)
     }
 }

@@ -5,82 +5,57 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.healthtrainer.app.pose.MediaPipeAdapter
 import com.healthtrainer.app.replay.SkeletonReplayFrame
-import com.healthtrainer.core.exercise.ExerciseFeedback
-import com.healthtrainer.core.exercise.ExerciseRule
+import com.healthtrainer.app.ui.ExerciseUiState
+import com.healthtrainer.core.exercise.ExerciseRegistry
 import com.healthtrainer.core.exercise.ExerciseType
-import com.healthtrainer.core.exercise.MovementPhase
-import com.healthtrainer.core.exercise.PlankRule
-import com.healthtrainer.core.exercise.PushUpRule
-import com.healthtrainer.core.exercise.SquatRule
-import com.healthtrainer.core.pose.LandmarkName
-import com.healthtrainer.core.pose.LandmarkNormalizer
-import com.healthtrainer.core.pose.PoseLandmark
 import com.healthtrainer.core.tracker.ExerciseSession
-import com.healthtrainer.core.tracker.RepRecord
-import com.healthtrainer.core.tracker.SetTracker
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * The `:app` orchestration hub. Owns the selected [ExerciseType], its `:core` [ExerciseRule] and
- * [SetTracker], the live Compose state the UI observes, and the replay-frame buffer.
+ * The `:app` orchestration hub (MVVM state holder). Exposes ONE immutable [ExerciseUiState] the live
+ * screen observes and updates it wholesale via `copy(...)` (UDF). Per-frame `:core` mechanism is
+ * delegated to [FramePipeline] (SRP); this class owns selection, set lifecycle, the replay buffer, and
+ * the built session for navigation.
  *
- * Per-frame path ([onPoseResult]) wires MediaPipe -> `:core` exactly as the mvp-4 plan §3 specifies:
- * ```
- * worldFrame  = MediaPipeAdapter.toPoseFrame(result, ts)     // raw world coords
- * overlay     = MediaPipeAdapter.toOverlayLandmarks(result)  // image coords for the overlay
- * normFrame   = LandmarkNormalizer.normalize(worldFrame)     // :core, safe every frame
- * feedback    = rule.evaluate(normFrame)                     // -> live overlay color
- * closedRep   = setTracker.onFrame(normFrame)                // -> authoritative rep counting
- * repCount    = setTracker.currentRepCount                   // -> live rep counter
- * ```
+ * **Open/closed:** the rule for an exercise comes from [ExerciseRegistry.ruleFor] and the "is this a
+ * hold?" decision from the rule's `mode` (surfaced as [ExerciseUiState.isHold]) — there is NO
+ * `when(exerciseType)` or `== ExerciseType.PLANK` branch here. Adding an exercise is a `:core` registry
+ * line + one label in `ExerciseUiText`; this control flow does not change.
  *
- * Rep counting is delegated **entirely** to `:core`'s [SetTracker]: `onFrame` returns the rep it just
- * closed and `currentRepCount` exposes the in-progress count, so there is NO parallel state machine
- * in `:app`. Validity is `:core`'s call (via `aggregateRep`); `:app` never ORs per-frame
- * `hardFailures`. The separate `rule.evaluate` call is only for the live overlay color — pure, no
- * effect on counting.
+ * Rep counting is delegated **entirely** to `:core`'s `SetTracker` (inside the pipeline): it returns
+ * the rep it just closed and exposes the in-progress count, so there is NO parallel state machine in
+ * `:app`, and validity is `:core`'s call (via `aggregateRep`) — `:app` never ORs per-frame
+ * `hardFailures`. The pipeline's `rule.evaluate` result is used only for the live overlay color.
  *
- * Threading: MediaPipe delivers results off the main thread, so every Compose-state write hops to
+ * Threading: MediaPipe delivers results off the main thread, so every state write hops to
  * [Dispatchers.Main] via [viewModelScope]. NOTE (requires device): this threading and the whole
  * camera/MediaPipe path are unverified on an SDK-less machine.
  */
 class MainViewModel : ViewModel() {
 
-    // ---- Selection + tracker (rebuilt when the exercise changes) -------------------------------
+    // ---- Per-frame pipeline (owns the active rule + :core SetTracker) ---------------------------
 
-    var selectedExercise by mutableStateOf(ExerciseType.SQUAT)
+    private val pipeline = FramePipeline(ExerciseRegistry.ruleFor(ExerciseType.SQUAT))
+
+    // ---- Single observable UI state ------------------------------------------------------------
+
+    /**
+     * The one immutable state the live [com.healthtrainer.app.ui.ExerciseScreen] observes. Backed by
+     * snapshot state; only this ViewModel mutates it (always via `copy(...)` — UDF).
+     */
+    var uiState by mutableStateOf(
+        ExerciseUiState(selectedExercise = ExerciseType.SQUAT, isHold = pipeline.isHold),
+    )
         private set
 
-    private var rule: ExerciseRule = ruleFor(selectedExercise)
-    private var setTracker: SetTracker = SetTracker(rule)
-
-    // ---- Live Compose state observed by ExerciseScreen -----------------------------------------
-
-    /** Latest per-frame feedback (drives overlay color + the live feedback text). */
-    var liveFeedback by mutableStateOf<ExerciseFeedback?>(null)
-        private set
-
-    /** Image-normalized landmarks for the on-screen overlay (`x,y in [0,1]`). */
-    var overlayLandmarks by mutableStateOf(emptyMap<LandmarkName, PoseLandmark>())
-        private set
-
-    /** Live rep count of the in-progress set, straight from [SetTracker.currentRepCount]. */
-    var repCount by mutableStateOf(0)
-        private set
-
-    /** Whether a set is currently being recorded (gates frame counting + replay capture). */
-    var isSetActive by mutableStateOf(false)
-        private set
+    // ---- Session + replay (kept separate; they drive navigation, not the live frame) -----------
 
     /** Built session, set on [finishSession]; null until the session ends. Drives navigation. */
     var session by mutableStateOf<ExerciseSession?>(null)
         private set
-
-    // ---- Replay capture ------------------------------------------------------------------------
 
     private val replayBuffer = mutableListOf<SkeletonReplayFrame>()
 
@@ -92,7 +67,7 @@ class MainViewModel : ViewModel() {
 
     /**
      * 1-based number of the in-progress set, mirrored locally so replay frames can be tagged before
-     * any rep closes (SetTracker exposes setNo only via a closed [RepRecord]). Incremented in
+     * any rep closes (SetTracker exposes setNo only via a closed RepRecord). Incremented in
      * [startSet], matching SetTracker's own per-set increment.
      */
     private var liveSetNo = 0
@@ -100,43 +75,39 @@ class MainViewModel : ViewModel() {
     // ---- Selection ----------------------------------------------------------------------------
 
     /**
-     * Switch exercise. Resets the tracker and live state; only allowed while no set is active so we
-     * never swap rules mid-rep.
+     * Switch exercise. Resets the pipeline (rule + tracker) and live state; only allowed while no set
+     * is active so we never swap rules mid-rep. Rule resolution is registry-driven — no type switch.
      */
     fun selectExercise(type: ExerciseType) {
-        if (isSetActive || type == selectedExercise) return
-        selectedExercise = type
-        rule = ruleFor(type)
-        setTracker = SetTracker(rule)
-        resetLiveState()
+        if (uiState.isSetActive || type == uiState.selectedExercise) return
+        pipeline.reset(ExerciseRegistry.ruleFor(type))
+        uiState = ExerciseUiState(selectedExercise = type, isHold = pipeline.isHold)
     }
 
-    // ---- Set lifecycle (delegates straight to :core SetTracker) --------------------------------
+    // ---- Set lifecycle (delegates straight to the pipeline / :core SetTracker) -----------------
 
     fun startSet() {
         if (session != null) return // a finished session must be cleared before a new one
         if (startedAtMs == 0L) startedAtMs = System.currentTimeMillis()
-        setTracker.startSet()
+        pipeline.startSet()
         liveSetNo += 1
-        isSetActive = true
-        repCount = 0
+        uiState = uiState.copy(isSetActive = true, repCount = 0)
     }
 
     fun endSet() {
-        if (!isSetActive) return
-        setTracker.endSet()
-        isSetActive = false
-        repCount = 0
+        if (!uiState.isSetActive) return
+        pipeline.endSet()
+        uiState = uiState.copy(isSetActive = false, repCount = 0)
     }
 
     /**
      * Close any open set, build the [ExerciseSession] from the tracker, and expose it (+ the replay
-     * buffer) for navigation to the result screen. Replay persistence is left to the caller (it
-     * needs a [android.content.Context] -> [com.healthtrainer.app.replay.SkeletonReplayStore]).
+     * buffer) for navigation to the result screen. Replay persistence is left to the caller (it needs
+     * a [android.content.Context] -> [com.healthtrainer.app.replay.SkeletonReplayStore]).
      */
     fun finishSession(): ExerciseSession {
-        if (isSetActive) endSet()
-        val built = setTracker.build(startedAtMs)
+        if (uiState.isSetActive) endSet()
+        val built = pipeline.build(startedAtMs)
         session = built
         return built
     }
@@ -147,68 +118,50 @@ class MainViewModel : ViewModel() {
         startedAtMs = 0L
         liveSetNo = 0
         replayBuffer.clear()
-        setTracker = SetTracker(rule)
-        resetLiveState()
+        pipeline.reset() // same rule, fresh tracker
+        uiState = ExerciseUiState(
+            selectedExercise = uiState.selectedExercise,
+            isHold = pipeline.isHold,
+        )
     }
 
     // ---- Per-frame entry point (called from the MediaPipe result listener, off-main) -----------
 
     /**
-     * Handle one MediaPipe result. [timestampMs] is the frame timestamp echoed by MediaPipe. Runs the
-     * plan §3 pipeline, then publishes Compose state on the main dispatcher.
+     * Handle one MediaPipe result. [timestampMs] is the frame timestamp echoed by MediaPipe. Delegates
+     * the §3 pipeline to [FramePipeline], captures a replay frame while a set is active, then publishes
+     * the new immutable state on the main dispatcher.
      */
     fun onPoseResult(result: PoseLandmarkerResult, timestampMs: Long) {
-        val worldFrame = MediaPipeAdapter.toPoseFrame(result, timestampMs)
-        val overlay = MediaPipeAdapter.toOverlayLandmarks(result)
-        val normFrame = LandmarkNormalizer.normalize(worldFrame)
+        val active = uiState.isSetActive
+        val outcome = pipeline.process(result, timestampMs, countReps = active)
 
-        val feedback = rule.evaluate(normFrame)              // live overlay color only (pure)
-
-        if (isSetActive) {
-            val closedRep: RepRecord? = setTracker.onFrame(normFrame)  // authoritative rep counting
+        if (active) {
             // setNo: prefer the just-closed rep's authoritative value, else the live set counter.
             // repNo: the rep this frame belongs to — the one just closed, or the next in-progress one.
-            val setNoForFrame = closedRep?.setNo ?: liveSetNo
-            val repNoForFrame = closedRep?.repNo ?: (setTracker.currentRepCount + 1)
+            val setNoForFrame = outcome.closedRep?.setNo ?: liveSetNo
+            val repNoForFrame = outcome.closedRep?.repNo ?: (outcome.currentRepCount + 1)
             replayBuffer += SkeletonReplayFrame.from(
                 timestampMs = timestampMs,
                 setNo = setNoForFrame,
                 repNo = repNoForFrame,
-                landmarks = normFrame.landmarks,
-                failures = feedback.hardFailures,            // per-frame, highlight-only
+                landmarks = outcome.normalizedLandmarks,
+                failures = outcome.feedback.hardFailures,        // per-frame, highlight-only
             )
         }
 
-        val liveCount = setTracker.currentRepCount
-
         // MediaPipe callback is off-main; publish Compose state on the main dispatcher.
         viewModelScope.launch(Dispatchers.Main) {
-            liveFeedback = feedback
-            overlayLandmarks = overlay
-            repCount = liveCount
+            uiState = uiState.copy(
+                liveFeedback = outcome.feedback,
+                overlayLandmarks = outcome.overlayLandmarks,
+                repCount = outcome.currentRepCount,
+            )
         }
     }
-
-    /** Whether the current live frame has nothing usable (UNKNOWN phase / low confidence). */
-    fun isLowConfidence(feedback: ExerciseFeedback?): Boolean =
-        feedback == null || feedback.phase == MovementPhase.UNKNOWN
 
     override fun onCleared() {
         super.onCleared()
         replayBuffer.clear()
-    }
-
-    // ---- Internals ----------------------------------------------------------------------------
-
-    private fun resetLiveState() {
-        liveFeedback = null
-        overlayLandmarks = emptyMap()
-        repCount = 0
-    }
-
-    private fun ruleFor(type: ExerciseType): ExerciseRule = when (type) {
-        ExerciseType.SQUAT -> SquatRule()
-        ExerciseType.PUSH_UP -> PushUpRule()
-        ExerciseType.PLANK -> PlankRule()
     }
 }

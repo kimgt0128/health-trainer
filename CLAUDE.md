@@ -18,6 +18,7 @@
 | 2026-06-03 | 모델 학습 트랙 추가 (`ml/` 순수-Python TDD 코어 64 tests green + 프로젝트 스코프 MCP + ml 에이전트 4) | `ml/`, `.mcp.json`, `.claude/mcp`, `.claude/agents/ml-*.md` | `docs/model-training-plan.md` 병렬 구현; feature 계약을 앱 `:core`와 일치시켜 inference 드리프트 방지 |
 | 2026-06-04 | PR 자동 리뷰 추가 (pr-reviewer 에이전트 + .github/workflows/pr-review.yml: :core 게이트 + LLM 리뷰) | agents/pr-reviewer.md, .github/ | PR마다 자동 코드 리뷰·판정 (code-reviewer 기반) |
 | 2026-06-04 | conflict-resolver 에이전트 추가 (추가형 충돌만 자동 union, 의미충돌·삭제는 사용자 질의) | agents/conflict-resolver.md | 머지/리베이스 충돌 발생 시 체계적 확인·해결 (code-reviewer 기반) |
+| 2026-06-04 | 운동 확장성 리팩터링 + 에이전트 아키텍처 원칙 (:core ExerciseRegistry/mode, :app MVVM/UDF UiState+FramePipeline+라벨 카탈로그) | :core, :app, agents/android-platform-engineer.md | 새 운동 추가를 등록 1줄로(open/closed), 깔끔한 Android 아키텍처 유지 |
 
 ## 환경 현실 (매 세션 유의)
 - 이 머신: **JDK 17 있음, Android SDK 없음.**

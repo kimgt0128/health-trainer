@@ -1,10 +1,12 @@
 package com.healthtrainer.app
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.healthtrainer.app.ml.FormClassifierRegistry
 import com.healthtrainer.app.replay.SkeletonReplayFrame
 import com.healthtrainer.app.ui.ExerciseUiState
 import com.healthtrainer.core.exercise.ExerciseRegistry
@@ -34,11 +36,26 @@ import kotlinx.coroutines.launch
  * [Dispatchers.Main] via [viewModelScope]. NOTE (requires device): this threading and the whole
  * camera/MediaPipe path are unverified on an SDK-less machine.
  */
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    // ---- Per-frame pipeline (owns the active rule + :core SetTracker) ---------------------------
+    // ---- Per-frame pipeline (owns the active rule + :core SetTracker + optional assist model) ----
 
-    private val pipeline = FramePipeline(ExerciseRegistry.ruleFor(ExerciseType.SQUAT))
+    /**
+     * Build the pipeline for [type]: the `:core` rule (registry-driven, no type switch) plus the
+     * OPTIONAL on-device form classifier + its `:core` feature extractor from [FormClassifierRegistry]
+     * (both `null` for exercises without a model — the app then runs rules-only). Centralized here so
+     * the initial build and every exercise switch wire the assist seam identically.
+     */
+    private fun pipelineFor(type: ExerciseType): FramePipeline {
+        val context = getApplication<Application>().applicationContext
+        return FramePipeline(
+            rule = ExerciseRegistry.ruleFor(type),
+            formClassifier = FormClassifierRegistry.forExercise(type, context),
+            featureExtractor = FormClassifierRegistry.extractorFor(type),
+        )
+    }
+
+    private var pipeline = pipelineFor(ExerciseType.SQUAT)
 
     // ---- Single observable UI state ------------------------------------------------------------
 
@@ -80,7 +97,8 @@ class MainViewModel : ViewModel() {
      */
     fun selectExercise(type: ExerciseType) {
         if (uiState.isSetActive || type == uiState.selectedExercise) return
-        pipeline.reset(ExerciseRegistry.ruleFor(type))
+        // Rebuild the whole pipeline: the assist model + extractor are exercise-specific too.
+        pipeline = pipelineFor(type)
         uiState = ExerciseUiState(selectedExercise = type, isHold = pipeline.isHold)
     }
 
@@ -150,12 +168,19 @@ class MainViewModel : ViewModel() {
             )
         }
 
+        // Form-model ASSIST: only a just-closed rep yields a (possibly null) verdict. Latch it so the
+        // hint persists until the NEXT rep closes; on a non-boundary frame keep the prior label. This
+        // is advisory only — it never touches repCount/validity (still outcome.currentRepCount).
+        val nextFormLabel =
+            if (outcome.closedRep != null) outcome.formAssist?.label else uiState.modelFormLabel
+
         // MediaPipe callback is off-main; publish Compose state on the main dispatcher.
         viewModelScope.launch(Dispatchers.Main) {
             uiState = uiState.copy(
                 liveFeedback = outcome.feedback,
                 overlayLandmarks = outcome.overlayLandmarks,
                 repCount = outcome.currentRepCount,
+                modelFormLabel = nextFormLabel,
             )
         }
     }

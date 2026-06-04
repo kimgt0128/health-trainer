@@ -31,6 +31,25 @@ object FeedbackText {
         FeedbackCode.LOW_CONFIDENCE -> "자세 인식 불가"
     }
 
+    /**
+     * Korean label for an OPTIONAL on-device form-classifier class (e.g. `"knees_caving_in"`). These
+     * are an ASSIST signal layered on top of the rule feedback — note that three of them
+     * (knees-caving / heels-off / asymmetric) are squat faults the sagittal rule engine can't see.
+     *
+     * Unknown labels (a model trained with classes we don't map yet) fall back to the raw string
+     * rather than crashing — forward-compatible with a re-exported model. `"correct"` is included for
+     * completeness but the fusion gate suppresses it before it ever reaches the UI.
+     */
+    fun modelFormLabel(label: String): String = when (label) {
+        "correct" -> "좋은 자세 (모델)"
+        "shallow_squat" -> "스쿼트 깊이 부족 (모델)"
+        "forward_lean" -> "상체 과도하게 숙임 (모델)"
+        "knees_caving_in" -> "무릎이 안쪽으로 모임 (모델)"
+        "heels_off_ground" -> "뒤꿈치가 들림 (모델)"
+        "asymmetric_squat" -> "좌우 비대칭 (모델)"
+        else -> "$label (모델)"
+    }
+
     /** Severity bucket of a [FeedbackCode] (§4 of the plan). */
     fun severity(code: FeedbackCode): Severity = when (code) {
         FeedbackCode.SQUAT_DEPTH_NOT_ENOUGH,

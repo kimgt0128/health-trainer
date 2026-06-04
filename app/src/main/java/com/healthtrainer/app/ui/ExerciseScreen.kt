@@ -70,6 +70,9 @@ fun ExerciseScreen(
 
         LiveStats(text = state.statsLine)
         LiveFeedbackText(message = state.liveMessage, color = state.overlayColor)
+        // Optional ASSIST line from the on-device form model (null unless a confident, non-`correct`
+        // verdict exists for the latest rep). Rendered as a secondary hint under the rule feedback.
+        state.modelHint?.let { ModelHintText(message = it) }
 
         SetControls(
             isSetActive = state.isSetActive,
@@ -122,6 +125,17 @@ private fun LiveFeedbackText(message: String, color: Color) {
         color = color,
         fontSize = 18.sp,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    )
+}
+
+@Composable
+private fun ModelHintText(message: String) {
+    // Secondary/assist styling: smaller + muted, so it reads as supplementary to the rule feedback.
+    Text(
+        text = "도움말: $message",
+        color = Color.Gray,
+        fontSize = 14.sp,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
     )
 }
 

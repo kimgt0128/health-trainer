@@ -11,6 +11,7 @@ CLI_MODULES = [
     "train_exercise_classifier",
     "train_phase_classifier",
     "train_squat_form_classifier",
+    "train_squat_form_mlp",
     "export_tflite",
     "evaluate",
 ]

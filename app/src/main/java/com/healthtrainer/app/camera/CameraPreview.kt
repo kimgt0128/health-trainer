@@ -1,6 +1,7 @@
 package com.healthtrainer.app.camera
 
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -28,10 +29,10 @@ import java.util.concurrent.Executors
  * `helper.detectAsync(mpImage, ts)`. The async result returns through the helper's `onResult`
  * (wired in [com.healthtrainer.app.MainViewModel]).
  *
- * NOTE (requires device): the camera provider, the [ImageProxy] -> [MPImage] conversion, frame
- * orientation, and the whole streaming path are unverified on an SDK-less machine. The
- * `imageProxy.toMpImage()` conversion below is a skeleton — a production build must handle the real
- * `ImageProxy` format/rotation. Marked accordingly.
+ * NOTE (requires device): the camera provider, native MediaPipe inference, and the whole streaming
+ * path are unverified on an SDK-less machine. The `imageProxy.toMpImage()` conversion below uses
+ * CameraX's `ImageProxy.toBitmap()` + a rotation [Matrix]; the code is compile-oriented but its
+ * runtime behavior (real RGBA frame delivery, rotation correctness) is unverified here.
  */
 @Composable
 fun CameraPreview(
@@ -80,11 +81,11 @@ fun CameraPreview(
 
 /**
  * Convert one [ImageProxy] to an [MPImage] and submit it for detection, using the proxy's timestamp
- * (ns -> ms) as the monotonic LIVE_STREAM timestamp. Always closes the proxy.
+ * (ns -> ms) as the monotonic LIVE_STREAM timestamp. ALWAYS closes the proxy (in `finally`), even on
+ * failure — a leaked proxy makes MediaPipe reject subsequent frames. If conversion throws, the frame
+ * is skipped rather than allowed to crash the analysis loop.
  *
- * requires device: the [ImageProxy] -> [Bitmap] conversion below is a placeholder. A real
- * implementation must convert the RGBA_8888 buffer (and apply rotation) correctly; this skeleton
- * only establishes the call shape into MediaPipe.
+ * requires device: real RGBA frame delivery + the async inference path are unverified here.
  */
 private fun ImageProxy.feedToHelper(helper: PoseLandmarkerHelper) {
     try {
@@ -93,18 +94,37 @@ private fun ImageProxy.feedToHelper(helper: PoseLandmarkerHelper) {
         if (mpImage != null) {
             helper.detectAsync(mpImage, timestampMs)
         }
+    } catch (e: RuntimeException) {
+        // Skip this frame on any conversion/submit failure; don't tear down the analyzer.
+        // requires device: which failures actually occur is unverified on an SDK-less machine.
     } finally {
         close()
     }
 }
 
 /**
- * Skeleton conversion of an RGBA_8888 [ImageProxy] to an [MPImage]. requires device: not a
- * production-correct buffer copy/rotation — establishes the [BitmapImageBuilder] -> [MPImage] shape.
+ * Convert an RGBA_8888 [ImageProxy] to an upright [MPImage].
+ *
+ * The [ImageAnalysis] use case is configured with `OUTPUT_IMAGE_FORMAT_RGBA_8888`, so CameraX 1.3+/
+ * 1.4.x can hand back an ARGB_8888 [Bitmap] via [ImageProxy.toBitmap]. We then rotate it upright by
+ * the proxy's [androidx.camera.core.ImageInfo.getRotationDegrees] before building the [MPImage], so
+ * MediaPipe sees the pose in the correct orientation.
+ *
+ * requires device: [ImageProxy.toBitmap] correctness and the rotation result are unverified on an
+ * SDK-less machine.
  */
 private fun ImageProxy.toMpImage(): MPImage? {
-    val plane = planes.firstOrNull() ?: return null
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    bitmap.copyPixelsFromBuffer(plane.buffer)
-    return BitmapImageBuilder(bitmap).build()
+    val bitmap = toBitmap()
+    val upright = bitmap.rotated(imageInfo.rotationDegrees)
+    return BitmapImageBuilder(upright).build()
+}
+
+/**
+ * Return this [Bitmap] rotated by [degrees] (clockwise). Returns the receiver unchanged when
+ * [degrees] is 0 to avoid an allocation/copy for the common already-upright case.
+ */
+private fun Bitmap.rotated(degrees: Int): Bitmap {
+    if (degrees == 0) return this
+    val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+    return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
 }

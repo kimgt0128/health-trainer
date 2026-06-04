@@ -24,6 +24,13 @@ import com.healthtrainer.core.pose.PoseLandmark
  * @property isHold            derived from the rule's [com.healthtrainer.core.exercise.ExerciseMode];
  *                             a hold exercise (plank) has no rep count and shows a hold indicator.
  *                             The UI reads THIS, never `selectedExercise == ExerciseType.PLANK`.
+ * @property modelFormLabel    OPTIONAL extra form hint from the on-device classifier for the most
+ *                             recent rep — an ASSIST signal, set only when the model is confident
+ *                             (≥ threshold) and the class is a fault (not `correct`). `null` whenever
+ *                             there is no model, low confidence, or no rep has closed. NEVER affects
+ *                             [repCount] or rep validity (that is solely the rule/tracker's call); it
+ *                             only lets the UI add a hint, esp. the rule-invisible squat faults
+ *                             (knees_caving_in / heels_off_ground / asymmetric_squat).
  */
 data class ExerciseUiState(
     val selectedExercise: ExerciseType,
@@ -32,10 +39,19 @@ data class ExerciseUiState(
     val overlayLandmarks: Map<LandmarkName, PoseLandmark> = emptyMap(),
     val isSetActive: Boolean = false,
     val isHold: Boolean = false,
+    val modelFormLabel: String? = null,
 ) {
 
     /** Overlay/skeleton tint for the current frame (green/yellow/red/gray). */
     val overlayColor: Color get() = SkeletonGraphics.overlayColor(liveFeedback)
+
+    /**
+     * The OPTIONAL model assist line to show beneath the rule feedback, or `null` when there is no
+     * confident model hint for the latest rep. Advisory only — distinct from [liveMessage] (which is
+     * the rule engine's word). Maps the raw [modelFormLabel] to its Korean label.
+     */
+    val modelHint: String?
+        get() = modelFormLabel?.let { FeedbackText.modelFormLabel(it) }
 
     /** Whether the live frame has nothing usable (no feedback yet, or UNKNOWN phase). */
     val isLowConfidence: Boolean

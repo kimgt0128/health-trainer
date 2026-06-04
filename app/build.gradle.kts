@@ -60,4 +60,8 @@ dependencies {
 
     implementation("com.google.mediapipe:tasks-vision:0.10.20")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+    // Optional on-device form classifier (ASSIST signal only; the app runs fine without the model).
+    // Used by com.healthtrainer.app.ml.TfliteFormClassifier to run the gitignored squat_form.tflite.
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
 }

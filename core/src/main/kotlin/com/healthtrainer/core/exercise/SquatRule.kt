@@ -20,6 +20,8 @@ class SquatRule : ExerciseRule {
 
     override val exerciseType: ExerciseType = ExerciseType.SQUAT
 
+    override val mode: ExerciseMode = ExerciseMode.REP_COUNTED
+
     override fun evaluate(frame: PoseFrame): ExerciseFeedback {
         val knee = averagedAngle(frame, KNEE_TRIPLES)
         val torso = averagedAngle(frame, TORSO_TRIPLES)

@@ -1,7 +1,7 @@
 package com.healthtrainer.core.tracker
 
+import com.healthtrainer.core.exercise.ExerciseMode
 import com.healthtrainer.core.exercise.ExerciseRule
-import com.healthtrainer.core.exercise.ExerciseType
 import com.healthtrainer.core.pose.PoseFrame
 
 /**
@@ -21,7 +21,9 @@ import com.healthtrainer.core.pose.PoseFrame
  */
 class SetTracker(private val rule: ExerciseRule) {
 
-    private val isHold: Boolean = rule.exerciseType == ExerciseType.PLANK
+    // Mode-driven dispatch (not a PLANK literal): a new hold-type exercise needs no tracker edit,
+    // it just declares mode = HOLD on its ExerciseRule.
+    private val isHold: Boolean = rule.mode == ExerciseMode.HOLD
 
     private val completedSets = mutableListOf<SetRecord>()
 

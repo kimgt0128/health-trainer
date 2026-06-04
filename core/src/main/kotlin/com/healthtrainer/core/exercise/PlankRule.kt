@@ -31,6 +31,8 @@ class PlankRule : ExerciseRule {
 
     override val exerciseType: ExerciseType = ExerciseType.PLANK
 
+    override val mode: ExerciseMode = ExerciseMode.HOLD
+
     override fun evaluate(frame: PoseFrame): ExerciseFeedback {
         val shoulder = averagedPoint(frame, LandmarkName.LEFT_SHOULDER, LandmarkName.RIGHT_SHOULDER)
         val elbow = averagedPoint(frame, LandmarkName.LEFT_ELBOW, LandmarkName.RIGHT_ELBOW)

@@ -5,6 +5,7 @@ tensorflow==2.17.0
 scikit-learn>=1.4
 numpy>=1.26
 pandas>=2.0
+kagglehub[pandas-datasets]>=1.0
 PyYAML>=6.0
 matplotlib>=3.8
 joblib>=1.3

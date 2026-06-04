@@ -34,6 +34,27 @@ Local CLI entrypoints live in `src/`; the tested core lives in `src/healthtraine
 Colab orchestration is `notebooks/health_trainer_training_colab.ipynb` (a thin runner
 that calls the same CLI scripts against the Drive `health_training/` workspace).
 
+## First real-data training target
+
+Use KaggleHub from Colab to pull the tabular squat-form dataset directly:
+
+```text
+dataset: thashmiladewmini/squat-exercise-pose-dataset
+file: squat_dataset/squat_features_augmented.csv
+labels: correct, shallow_squat, forward_lean, knees_caving_in, heels_off_ground, asymmetric_squat
+```
+
+This dataset already contains MediaPipe-derived pose features, so it does **not** use
+`extract_landmarks.py`. Train it with:
+
+```bash
+python ml/src/train_squat_form_classifier.py \
+  --run-dir "$RUNS_DIR/squat_form_classifier_rf_v1"
+```
+
+The script writes `squat_form_classifier.joblib`, `labels_squat_form.json`,
+`feature_config.json`, and `metrics_summary.json` into the Drive run directory.
+
 ## Contract with the Android app
 
 `configs/*.yaml` + the emitted `feature_config.json` are the single source of truth for

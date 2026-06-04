@@ -13,7 +13,10 @@
 |------|----------|------|------|
 | 2026-06-03 | 초기 구성 (에이전트 5 + 스킬 3) | 전체 | READ.md/plan.md 기반 하네스 구축 |
 | 2026-06-03 | 에이전트에 Skill 도구 추가 | agents/*.md | 디스패치된 서브에이전트가 참조 스킬(superpowers + 로컬)을 로드 가능하도록 |
+| 2026-06-03 | rule↔tracker 계약 정정 (rep 유효성=aggregateRep 단독, 느슨한 descent 카운트, 보이는-프레임 분모) | skills/pose-rule-authoring | mvp-2 code-reviewer 피드백 반영 |
+| 2026-06-03 | 유틸리티 스킬 2종 추가 (core-build-test 스크립트, pose-test-fixtures + 검증된 SyntheticPose 테스트 헬퍼) | skills/, core test util | 세션마다 반복된 빌드/테스트·합성 프레임 작업을 결정적 스크립트/헬퍼로 번들 |
 | 2026-06-03 | 모델 학습 트랙 추가 (`ml/` 순수-Python TDD 코어 64 tests green + 프로젝트 스코프 MCP + ml 에이전트 4) | `ml/`, `.mcp.json`, `.claude/mcp`, `.claude/agents/ml-*.md` | `docs/model-training-plan.md` 병렬 구현; feature 계약을 앱 `:core`와 일치시켜 inference 드리프트 방지 |
+| 2026-06-04 | PR 자동 리뷰 추가 (pr-reviewer 에이전트 + .github/workflows/pr-review.yml: :core 게이트 + LLM 리뷰) | agents/pr-reviewer.md, .github/ | PR마다 자동 코드 리뷰·판정 (code-reviewer 기반) |
 
 ## 환경 현실 (매 세션 유의)
 - 이 머신: **JDK 17 있음, Android SDK 없음.**

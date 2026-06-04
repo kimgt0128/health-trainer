@@ -65,10 +65,10 @@ interface ExerciseRule {
 - hold 성공: 분석 프레임의 `70%` 이상에서 유효 자세 유지.
 
 ## rep state machine과의 계약 (tracker 패키지)
-- 스쿼트/푸쉬업: `TOP → BOTTOM → TOP` 전이가 완성될 때만 rep 1회 카운트.
-- rep window 동안 `hardFailures`가 한 번이라도 모이면 그 rep은 `valid = false`.
-- 푸쉬업 몸통 실패는 비율 기준(broken 프레임 > 30%)이므로, tracker가 rep window의 프레임을 누적해 판정한다.
-- 플랭크: 사용자가 타이머를 멈출 때 hold 레코드 1개 생성.
+- 스쿼트/푸쉬업 rep 카운트는 `TOP → 충분히 내려감(descent) → TOP`로 센다. **카운트용 descent 임계값은 정자세 BOTTOM 밴드(70~110)보다 느슨해야 한다.** 그래야 깊이가 부족한(얕은) rep도 일단 카운트된 뒤 실패로 기록된다. BOTTOM 밴드(≤110)만으로 세면, 깊이 실패(min 각도 > 120)와 상호배타가 되어 얕은 rep은 아예 세지 않게 되고 실패 기록 자체가 사라진다.
+- **rep 유효성은 `ExerciseRule.aggregateRep()`가 단독 판정한다.** 프레임 단위 `hardFailures`를 OR해서 무효로 판정하지 말 것 — 비율 게이트(예: 푸쉬업 몸통 >30%)를 우회한다. 프레임 단위 `hardFailures`는 실시간 오버레이/replay 프레임 하이라이트용 신호다.
+- 비율 기준(푸쉬업 몸통, 플랭크 hold)의 분모는 **보이는(평가된) 프레임 수**다. 저신뢰(UNKNOWN, metrics 비어있음) 프레임은 분모에서 제외한다.
+- 플랭크: 사용자가 타이머를 멈출 때 hold 레코드 1개 생성. `aggregateRep`에 전체 hold 프레임을 넘긴다.
 - 실패 회차는 `1세트 2회차`처럼 `setNo`/`repNo`로 식별된다.
 
 ## 테스트 작성 팁

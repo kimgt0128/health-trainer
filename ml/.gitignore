@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# local data/artifacts — these live in Google Drive health_training/, not in git
+data/
+runs/
+exports/
+*.npz
+*.csv
+*.tflite
+*.keras
+*.joblib

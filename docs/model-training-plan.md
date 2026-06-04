@@ -82,7 +82,12 @@ rule-based pseudo-label 데이터
 
 우선 검토할 데이터셋은 다음과 같다.
 
-- Kaggle Squat Exercise Pose Dataset: 스쿼트 correct/incorrect pose feature 학습에 사용
+- Kaggle Squat Exercise Pose Dataset: 스쿼트 correct/incorrect pose feature 학습에 사용.
+  첫 실제 학습 타깃은 이 데이터셋이다. Colab에서 `kagglehub`로
+  `thashmiladewmini/squat-exercise-pose-dataset`의
+  `squat_dataset/squat_features_augmented.csv`를 직접 로드한다. 이 데이터셋은
+  이미 MediaPipe 기반 feature CSV이므로 landmark extraction 단계를 건너뛰고
+  `train_squat_form_classifier.py`로 RandomForest baseline을 학습한다.
 - Kaggle LSTM Exercise Classification Push Up Videos: 푸쉬업 correct/incorrect 영상과 MediaPipe keypoint 실험에 사용
 - Kaggle Physical Exercise Recognition Time Series: push-up, pull-up, sit-up, jumping jack, squat landmark sequence 분류에 사용
 - Kaggle Real-Time Exercise Recognition Dataset: squat, push-up, bicep curl, shoulder press 운동 종류 분류 실험에 사용

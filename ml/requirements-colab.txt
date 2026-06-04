@@ -1,0 +1,11 @@
+# Colab execution environment (GPU/CPU on Colab). Heavy; NOT installed locally.
+# The Colab runner notebook installs these before extraction/training.
+mediapipe==0.10.20
+tensorflow==2.17.0
+scikit-learn>=1.4
+numpy>=1.26
+pandas>=2.0
+kagglehub[pandas-datasets]>=1.0
+PyYAML>=6.0
+matplotlib>=3.8
+joblib>=1.3

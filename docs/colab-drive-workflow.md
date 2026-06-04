@@ -125,6 +125,45 @@ health_trainer/
 
 Colab notebook은 다음 흐름으로 구성한다.
 
+### Track A: KaggleHub squat-form baseline
+
+첫 실제 데이터 학습은 Drive에 raw video를 올리지 않고 Colab에서 KaggleHub로 직접
+가져온다.
+
+```python
+import kagglehub
+from kagglehub import KaggleDatasetAdapter
+
+df = kagglehub.load_dataset(
+    KaggleDatasetAdapter.PANDAS,
+    "thashmiladewmini/squat-exercise-pose-dataset",
+    "squat_dataset/squat_features_augmented.csv",
+)
+```
+
+이 데이터셋은 이미 MediaPipe 기반 feature CSV이므로 `extract_landmarks.py`와
+`build_features.py`를 사용하지 않는다. Colab runner에서는 다음 명령을 실행한다.
+
+```bash
+python ml/src/train_squat_form_classifier.py \
+  --run-dir "$RUNS_DIR/squat_form_classifier_rf_v1"
+```
+
+산출물:
+
+```text
+health_training/runs/squat_form_classifier_rf_v1/
+  squat_form_classifier.joblib
+  labels_squat_form.json
+  feature_config.json
+  metrics_summary.json
+```
+
+이 모델은 Android에 바로 넣는 TFLite 모델이 아니라, 스쿼트 오자세 분류가 실제
+공개 데이터로 학습 가능함을 보여주는 baseline 산출물이다.
+
+### Track B: raw video / landmark / sequence model
+
 ```text
 1. Google Drive mount
 2. health_training 폴더 경로 설정
@@ -314,4 +353,3 @@ app/src/main/assets/models/
 - 모델이 기대만큼 좋지 않아도 rule-based MVP는 계속 동작한다.
 
 정리하면, **Colab은 훈련장, Drive는 실험 창고, 로컬 프로젝트는 제품 코드의 기준점**으로 쓰는 방식이 가장 안전하다.
-

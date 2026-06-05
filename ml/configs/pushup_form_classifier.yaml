@@ -8,10 +8,12 @@
 # A reorder/rename here silently breaks app inference (ml/LESSONS.md L4).
 task: pushup_form_classifier
 
-# ⚠️ source schema UNVERIFIED locally (no Kaggle auth) — confirm in Colab. See
-# healthtrainer_ml/pushup_pose_dataset.py module docstring.
+# Source is RAW VIDEO (confirmed in Colab), not a CSV: Correct sequence/*.mp4 (label 0),
+# Wrong sequence/*.mp4 (label 1). Rows are built per-rep from video by
+# healthtrainer_ml.pushup_video_features.build_pushup_dataframe (segment_reps -> rep_features),
+# so each row == the app :core PushUpFeatureExtractor's inference-time row (train↔inference match).
 source_dataset: mohamadashrafsalama/pushup
-source_file: pushup/pushup_features.csv   # PLACEHOLDER — verify real path in Colab
+granularity: rep
 
 labels:
   0: correct

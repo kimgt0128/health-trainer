@@ -1,15 +1,46 @@
 """CLI: train a rep-level push-up form classifier (binary correct/incorrect).
 
-Mirrors ``train_squat_form_classifier``. HistGradientBoosting is the default model
-because on the squat balanced tabular data it decisively beat RandomForest tuning
-(ml/LESSONS.md L5); RF stays available as a baseline via ``--model rf``.
+The push-up Kaggle dataset (``mohamadashrafsalama/pushup``) is **raw video**, not a CSV
+(confirmed in Colab). This script reproduces the app :core pipeline end-to-end so the model
+trains on the same distribution it later infers on:
 
-⚠️ The push-up dataset schema is UNVERIFIED locally (no Kaggle auth) — see
-``healthtrainer_ml.pushup_pose_dataset`` module docstring before a real run.
+    kagglehub.dataset_download -> raw clips
+      -> build_pushup_dataframe (MediaPipe per-frame angles -> segment_reps -> rep_features)
+      -> one ROW PER REP (FEATURE_COLUMNS + label)
+      -> split -> HGB (default) -> metrics -> 4 artifacts.
+
+Each rep row equals the app :core PushUpFeatureExtractor's inference-time row, so train and
+inference share a distribution (rep-level, ml/LESSONS.md L4).
+
+HistGradientBoosting is the default (it decisively beat RF on the squat tabular data,
+ml/LESSONS.md L5); RF stays available via ``--model rf``.
+
+Colab-only at runtime (decodes video + runs MediaPipe). All heavy deps — kagglehub, cv2,
+mediapipe, sklearn, joblib — are imported INSIDE ``main`` so importing this module never
+pulls them (lazy-import contract, test_cli_smoke / ml/LESSONS.md L3/L4).
 """
 from __future__ import annotations
 
 import argparse
+
+# MediaPipe pose-landmarker .task (lite). Downloaded on demand if absent (Colab).
+POSE_TASK_URL = (
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
+    "pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+)
+POSE_TASK_FILENAME = "pose_landmarker_lite.task"
+
+
+def _ensure_pose_task(run_dir):  # pragma: no cover
+    """Return a local path to the pose-landmarker .task, downloading it if missing."""
+    import os
+    import urllib.request
+
+    task_path = os.path.join(run_dir, POSE_TASK_FILENAME)
+    if not os.path.exists(task_path):
+        print(f"downloading pose-landmarker model -> {task_path}")
+        urllib.request.urlretrieve(POSE_TASK_URL, task_path)
+    return task_path
 
 
 def main(argv=None) -> int:
@@ -31,20 +62,27 @@ def main(argv=None) -> int:
     import os
 
     import joblib
+    import kagglehub
     from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
     from sklearn.model_selection import train_test_split
 
     from healthtrainer_ml.metrics import accuracy, confusion_matrix, macro_f1
     from healthtrainer_ml.pushup_pose_dataset import (
+        DATASET_HANDLE,
         LABELS,
+        build_pushup_dataframe,
         feature_config,
-        load_pushup_dataframe,
         split_features_labels,
     )
 
     os.makedirs(args.run_dir, exist_ok=True)
 
-    df = load_pushup_dataframe()
+    # 1) raw-video dataset + the MediaPipe .task model.
+    dataset_root = kagglehub.dataset_download(DATASET_HANDLE)
+    task_path = _ensure_pose_task(args.run_dir)
+
+    # 2) video -> per-rep rows (MediaPipe per-frame angles -> segment_reps -> rep_features).
+    df = build_pushup_dataframe(dataset_root, task_path)
     X, y = split_features_labels(df)
     X_train, X_test, y_train, y_test = train_test_split(
         X,
@@ -71,6 +109,7 @@ def main(argv=None) -> int:
         "confusion_matrix": confusion_matrix(truth, preds, len(LABELS)),
         "n_train": int(len(y_train)),
         "n_test": int(len(y_test)),
+        "n_reps": int(len(y)),
     }
 
     joblib.dump(model, os.path.join(args.run_dir, "pushup_form_classifier.joblib"), compress=3)

@@ -23,6 +23,11 @@ import com.healthtrainer.core.exercise.FeedbackCode
  * @property startTimestampMs frame timestamp where the rep's descent began.
  * @property endTimestampMs   frame timestamp where the rep returned to the top (or, for a plank
  *                            hold, the last frame of the hold).
+ * @property metrics persisted per-rep angle aggregate from
+ *                   [com.healthtrainer.core.exercise.ExerciseRule.aggregateRepMetrics] (e.g.
+ *                   `min_knee_angle`, `mean_torso_angle`). Unlike [RepRecordData.frameFeedbacks]
+ *                   (transient), this survives the session and feeds scoring / the result report.
+ *                   Defaults to empty so existing callers stay non-breaking.
  */
 data class RepRecord(
     val setNo: Int,
@@ -31,6 +36,7 @@ data class RepRecord(
     val failures: Set<FeedbackCode>,
     val startTimestampMs: Long,
     val endTimestampMs: Long,
+    val metrics: Map<String, Float> = emptyMap(),
 )
 
 /** One set: its 1-based [setNo] and the [reps] it contains, in order. */
@@ -55,6 +61,10 @@ data class ExerciseSession(
  * [com.healthtrainer.core.features.RepFeatureExtractor] (push-up assist model) so features are built
  * from the rule's own metrics with zero angle recomputation. It is NOT part of the persisted
  * [RepRecord]; the default `emptyList()` keeps existing callers non-breaking.
+ *
+ * [metrics] is the **persisted** per-rep angle aggregate (from
+ * [com.healthtrainer.core.exercise.ExerciseRule.aggregateRepMetrics]) that [toRecord] carries onto
+ * [RepRecord.metrics]. The default `emptyMap()` keeps existing callers non-breaking.
  */
 data class RepRecordData(
     val valid: Boolean,
@@ -62,4 +72,5 @@ data class RepRecordData(
     val startTimestampMs: Long,
     val endTimestampMs: Long,
     val frameFeedbacks: List<ExerciseFeedback> = emptyList(),
+    val metrics: Map<String, Float> = emptyMap(),
 )

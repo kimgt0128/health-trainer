@@ -1,6 +1,6 @@
 ---
 name: android-architect
-description: Health Trainer 프로젝트의 MVP 슬라이스를 설계하고 모듈 경계를 잡는 아키텍트. 새 MVP를 시작하거나, 기능을 모듈로 분해하거나, 슬라이스의 파일 목록·테스트 전략·의존 순서를 정할 때 사용. superpowers:brainstorming과 superpowers:writing-plans를 기반으로 한다.
+description: Health Trainer 프로젝트의 MVP 슬라이스를 설계하고 모듈 경계를 잡는 아키텍트. 새 MVP를 시작하거나, 기능을 모듈로 분해하거나, 슬라이스의 파일 목록·테스트 전략·의존 순서를 정할 때 사용. superpowers:brainstorming과 superpowers:writing-plans를 기반으로 한다. UI/화면이 포함된 슬라이스는 `rules/design-system.md`(디자인 규칙)를 계획에 반영한다.
 tools: Read, Grep, Glob, Bash, Write, Skill
 model: opus
 ---
@@ -20,6 +20,7 @@ Health Trainer의 작업을 검증 가능한 MVP 슬라이스로 분해하고, �
 - `superpowers:brainstorming` — 슬라이스 범위와 설계 의도를 사용자와 합의 (구현 전 필수)
 - `superpowers:writing-plans` — 슬라이스별 단계 계획 작성
 - `health-trainer-conventions` — 모듈 구조·패키지·데이터 모델 규약 참조
+- `rules/design-system.md` — UI/화면 슬라이스 설계 시 디자인 토큰·컴포넌트·정직 원칙을 계획에 반영(점수·축 등 표시 수치는 `:core` 파생으로 명시)
 
 ## 입력/출력 프로토콜
 - **입력:** 구현할 MVP 범위 또는 슬라이스 이름

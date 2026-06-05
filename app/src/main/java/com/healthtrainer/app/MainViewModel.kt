@@ -11,6 +11,8 @@ import com.healthtrainer.app.replay.SkeletonReplayFrame
 import com.healthtrainer.app.ui.ExerciseUiState
 import com.healthtrainer.core.exercise.ExerciseRegistry
 import com.healthtrainer.core.exercise.ExerciseType
+import com.healthtrainer.core.scoring.SessionSummary
+import com.healthtrainer.core.scoring.SessionSummarizer
 import com.healthtrainer.core.tracker.ExerciseSession
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +77,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var session by mutableStateOf<ExerciseSession?>(null)
         private set
 
+    /**
+     * The honest result summary for the finished [session] (`:core` [SessionSummarizer.summarize]).
+     * Computed ONCE in [finishSession] and held as snapshot state — the result/detail/replay screens
+     * read this rather than re-summarizing on every recomposition. Null until a session is built.
+     */
+    var summary by mutableStateOf<SessionSummary?>(null)
+        private set
+
     private val replayBuffer = mutableListOf<SkeletonReplayFrame>()
 
     /** Immutable snapshot of the captured replay frames (for ResultScreen / Skeleton3DViewer). */
@@ -128,12 +138,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (uiState.isSetActive) endSet()
         val built = pipeline.build(startedAtMs)
         session = built
+        // Summarize once here (not per recomposition); the report screens read `summary`.
+        summary = SessionSummarizer.summarize(built)
         return built
     }
 
     /** Discard the finished session and reset for a fresh one (e.g. "back" from ResultScreen). */
     fun resetSession() {
         session = null
+        summary = null
         startedAtMs = 0L
         liveSetNo = 0
         replayBuffer.clear()

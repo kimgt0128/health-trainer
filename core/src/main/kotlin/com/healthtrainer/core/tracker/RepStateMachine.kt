@@ -52,6 +52,9 @@ class RepStateMachine(private val rule: ExerciseRule) {
                 buffer.add(feedback)
                 if (rule.isTop(feedback)) {
                     val failures = rule.aggregateRep(buffer)
+                    // Persisted per-rep angle aggregate, from the SAME buffer aggregateRep saw — no
+                    // recomputation, no second math path. Captured BEFORE clearing the buffer.
+                    val metrics = rule.aggregateRepMetrics(buffer)
                     // Capture the rep's per-frame feedbacks for the rep-level feature extractor
                     // (push-up assist) BEFORE clearing the buffer.
                     val rep = RepRecordData(
@@ -60,6 +63,7 @@ class RepStateMachine(private val rule: ExerciseRule) {
                         startTimestampMs = repStartMs,
                         endTimestampMs = frame.timestampMs,
                         frameFeedbacks = buffer.toList(),
+                        metrics = metrics,
                     )
                     state = State.TOP
                     buffer.clear()

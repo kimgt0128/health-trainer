@@ -54,24 +54,44 @@ class PushUpRule : ExerciseRule {
             phase = phase,
             hardFailures = hardFailures,
             softWarnings = emptySet(),
-            metrics = mapOf("elbowAngle" to elbow, "bodyLineAngle" to bodyLine),
+            metrics = mapOf(ELBOW_ANGLE to elbow, BODY_LINE_ANGLE to bodyLine),
         )
     }
 
     override fun aggregateRep(frameFeedbacks: List<ExerciseFeedback>): Set<FeedbackCode> {
         if (frameFeedbacks.isEmpty()) return emptySet()
         return buildSet {
-            val minElbow = frameFeedbacks.mapNotNull { it.metrics["elbowAngle"] }.minOrNull()
+            val minElbow = frameFeedbacks.mapNotNull { it.metrics[ELBOW_ANGLE] }.minOrNull()
             if (minElbow != null && minElbow > DEPTH_MAX_ELBOW_ANGLE) {
                 add(FeedbackCode.PUSH_UP_DEPTH_NOT_ENOUGH)
             }
 
             // Denominator is the *visible* (evaluated) frames, per plan.md ("30% of visible frames").
             // Low-confidence frames carry no bodyLineAngle and must not dilute the ratio.
-            val visibleFrames = frameFeedbacks.count { it.metrics.containsKey("bodyLineAngle") }
+            val visibleFrames = frameFeedbacks.count { it.metrics.containsKey(BODY_LINE_ANGLE) }
             val brokenFrames = frameFeedbacks.count { FeedbackCode.PUSH_UP_BODY_LINE_BROKEN in it.hardFailures }
             if (visibleFrames > 0 && brokenFrames.toFloat() / visibleFrames > BODY_LINE_BROKEN_FRAME_RATIO) {
                 add(FeedbackCode.PUSH_UP_BODY_LINE_BROKEN)
+            }
+        }
+    }
+
+    /**
+     * Per-rep angle aggregate over the SAME per-frame metric keys [evaluate] emits and [aggregateRep]
+     * reads ([ELBOW_ANGLE], [BODY_LINE_ANGLE] + the per-frame [FeedbackCode.PUSH_UP_BODY_LINE_BROKEN])
+     * — no recomputation. The broken ratio uses the rule's own visible-frame denominator (frames
+     * carrying a body-line angle); frames without a metric are excluded; if no frame carries a given
+     * metric, that key is omitted.
+     */
+    override fun aggregateRepMetrics(frameFeedbacks: List<ExerciseFeedback>): Map<String, Float> {
+        val elbows = frameFeedbacks.mapNotNull { it.metrics[ELBOW_ANGLE] }
+        val bodyLines = frameFeedbacks.mapNotNull { it.metrics[BODY_LINE_ANGLE] }
+        val broken = frameFeedbacks.count { FeedbackCode.PUSH_UP_BODY_LINE_BROKEN in it.hardFailures }
+        return buildMap {
+            elbows.minOrNull()?.let { put("min_elbow_angle", it) }
+            if (bodyLines.isNotEmpty()) {
+                put("min_body_line_angle", bodyLines.min())
+                put("body_line_broken_ratio", broken.toFloat() / bodyLines.size)
             }
         }
     }
@@ -102,6 +122,10 @@ class PushUpRule : ExerciseRule {
         frame.landmarks[name]?.takeIf { it.visibility >= MIN_VISIBILITY }?.let { Point3(it.x, it.y, it.z) }
 
     companion object {
+        /** Per-frame metric keys produced by [evaluate] — the single source for [aggregateRepMetrics]. */
+        const val ELBOW_ANGLE = "elbowAngle"
+        const val BODY_LINE_ANGLE = "bodyLineAngle"
+
         /** Minimum landmark visibility to trust a joint (health-trainer-conventions skill). */
         const val MIN_VISIBILITY = 0.55f
 
@@ -115,8 +139,22 @@ class PushUpRule : ExerciseRule {
         /** Body line broken when shoulder-hip-ankle drops below this (pose-rule-authoring skill). */
         const val BODY_LINE_MIN_ANGLE = 160f
 
+        /**
+         * Reference body-line angle for a badly broken (sagging/piking) trunk. The body-line score
+         * ramps from 100 at [BODY_LINE_MIN_ANGLE] down to 0 here. Single source for the scorer's
+         * body-line ramp. MVP default; tune with footage.
+         */
+        const val BODY_LINE_BROKEN_ANGLE = 120f
+
         /** Depth failure when the rep's minimum elbow angle stays above this (pose-rule-authoring). */
         const val DEPTH_MAX_ELBOW_ANGLE = 105f
+
+        /**
+         * Reference elbow angle for fully-extended arms (no descent). The depth score ramps from 100
+         * at [DEPTH_MAX_ELBOW_ANGLE] down to 0 here. Single source for the scorer's depth ramp. MVP
+         * default; tune with footage.
+         */
+        const val EXTENDED_ELBOW_ANGLE = 170f
 
         /**
          * Tracker rep-segmentation threshold: a frame counts as a descent when the elbow angle drops

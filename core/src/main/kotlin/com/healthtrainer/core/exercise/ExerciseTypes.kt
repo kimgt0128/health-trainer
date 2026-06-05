@@ -95,6 +95,21 @@ interface ExerciseRule {
     fun aggregateRep(frameFeedbacks: List<ExerciseFeedback>): Set<FeedbackCode>
 
     /**
+     * Per-rep angle aggregate (min / mean / ratio over the rep's frames), for the persisted
+     * [com.healthtrainer.core.tracker.RepRecord.metrics] that feeds scoring and the result report.
+     *
+     * **Single math source.** Implementations MUST derive these from the very same per-frame
+     * [ExerciseFeedback.metrics] keys the rule already produces in [evaluate] and consumes in
+     * [aggregateRep] — there is no second angle-math path (a documented drift hazard, see
+     * docs/LESSONS.md). Denominators follow the rule's own visible-frame convention: low-confidence
+     * frames carry no metric and are excluded; if no frame carries a given metric, omit that key
+     * (never fabricate a value).
+     *
+     * Default is empty so existing/foreign rules stay non-breaking.
+     */
+    fun aggregateRepMetrics(frameFeedbacks: List<ExerciseFeedback>): Map<String, Float> = emptyMap()
+
+    /**
      * Whether this frame counts as "at the top" for rep segmentation (the tracker counts a rep on
      * TOP -> descent -> TOP). Default: [ExerciseFeedback.phase] == [MovementPhase.TOP].
      */

@@ -68,18 +68,32 @@ class PlankRule : ExerciseRule {
             phase = MovementPhase.HOLD,
             hardFailures = hardFailures,
             softWarnings = softWarnings,
-            metrics = mapOf("bodyLineAngle" to bodyLine, "elbowOffset" to elbowOffset),
+            metrics = mapOf(BODY_LINE_ANGLE to bodyLine, ELBOW_OFFSET to elbowOffset),
         )
     }
 
     override fun aggregateRep(frameFeedbacks: List<ExerciseFeedback>): Set<FeedbackCode> {
         // Denominator is the *visible* (evaluated) frames; low-confidence frames carry no
         // bodyLineAngle and must not dilute the hold-quality ratio.
-        val visible = frameFeedbacks.count { it.metrics.containsKey("bodyLineAngle") }
+        val visible = frameFeedbacks.count { it.metrics.containsKey(BODY_LINE_ANGLE) }
         if (visible == 0) return emptySet()
         return FAILURE_CODES.filterTo(mutableSetOf()) { code ->
             val count = frameFeedbacks.count { code in it.hardFailures }
             count.toFloat() / visible > FAILURE_FRAME_RATIO
+        }
+    }
+
+    /**
+     * Per-rep (hold) angle aggregate over the SAME per-frame metric keys [evaluate] emits and
+     * [aggregateRep] reads ([BODY_LINE_ANGLE], [ELBOW_OFFSET]) — no recomputation. Low-confidence
+     * frames carry no metric and are excluded; if no frame carries a given metric, that key is omitted.
+     */
+    override fun aggregateRepMetrics(frameFeedbacks: List<ExerciseFeedback>): Map<String, Float> {
+        val bodyLines = frameFeedbacks.mapNotNull { it.metrics[BODY_LINE_ANGLE] }
+        val offsets = frameFeedbacks.mapNotNull { it.metrics[ELBOW_OFFSET] }
+        return buildMap {
+            bodyLines.minOrNull()?.let { put("min_body_line_angle", it) }
+            offsets.maxOrNull()?.let { put("max_elbow_offset", it) }
         }
     }
 
@@ -108,11 +122,22 @@ class PlankRule : ExerciseRule {
         frame.landmarks[name]?.takeIf { it.visibility >= MIN_VISIBILITY }?.let { Point3(it.x, it.y, it.z) }
 
     companion object {
+        /** Per-frame metric keys produced by [evaluate] — the single source for [aggregateRepMetrics]. */
+        const val BODY_LINE_ANGLE = "bodyLineAngle"
+        const val ELBOW_OFFSET = "elbowOffset"
+
         /** Minimum landmark visibility to trust a joint (health-trainer-conventions skill). */
         const val MIN_VISIBILITY = 0.55f
 
         /** Valid body alignment: shoulder-hip-ankle at or above this (pose-rule-authoring skill). */
         const val BODY_LINE_MIN_ANGLE = 160f
+
+        /**
+         * Reference body-line angle for a badly broken (sagging/piking) hold. The body-line score
+         * ramps from 100 at [BODY_LINE_MIN_ANGLE] down to 0 here. Single source for the scorer's
+         * body-line ramp. MVP default; tune with footage.
+         */
+        const val BODY_LINE_BROKEN_ANGLE = 120f
 
         /** Elbow misaligned soft warning when the normalized horizontal offset exceeds this. */
         const val ELBOW_OFFSET_MAX = 0.25f

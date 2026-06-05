@@ -50,15 +50,32 @@ class SquatRule : ExerciseRule {
             phase = phase,
             hardFailures = emptySet(),
             softWarnings = softWarnings,
-            metrics = mapOf("kneeAngle" to knee, "torsoAngle" to torso),
+            metrics = mapOf(KNEE_ANGLE to knee, TORSO_ANGLE to torso),
         )
     }
 
     override fun aggregateRep(frameFeedbacks: List<ExerciseFeedback>): Set<FeedbackCode> {
-        val minKnee = frameFeedbacks.mapNotNull { it.metrics["kneeAngle"] }.minOrNull()
+        val minKnee = frameFeedbacks.mapNotNull { it.metrics[KNEE_ANGLE] }.minOrNull()
             ?: return emptySet()
         return buildSet {
             if (minKnee > DEPTH_MAX_KNEE_ANGLE) add(FeedbackCode.SQUAT_DEPTH_NOT_ENOUGH)
+        }
+    }
+
+    /**
+     * Per-rep angle aggregate over the SAME per-frame metric keys [evaluate] emits and [aggregateRep]
+     * reads ([KNEE_ANGLE], [TORSO_ANGLE]) — no recomputation. Frames without a metric (low-confidence)
+     * are excluded; if no frame carries any metric, the result is empty.
+     */
+    override fun aggregateRepMetrics(frameFeedbacks: List<ExerciseFeedback>): Map<String, Float> {
+        val knees = frameFeedbacks.mapNotNull { it.metrics[KNEE_ANGLE] }
+        val torsos = frameFeedbacks.mapNotNull { it.metrics[TORSO_ANGLE] }
+        return buildMap {
+            knees.minOrNull()?.let { put("min_knee_angle", it) }
+            if (torsos.isNotEmpty()) {
+                put("mean_torso_angle", torsos.average().toFloat())
+                put("min_torso_angle", torsos.min())
+            }
         }
     }
 
@@ -92,6 +109,10 @@ class SquatRule : ExerciseRule {
         frame.landmarks[name]?.takeIf { it.visibility >= MIN_VISIBILITY }?.let { Point3(it.x, it.y, it.z) }
 
     companion object {
+        /** Per-frame metric keys produced by [evaluate] — the single source for [aggregateRepMetrics]. */
+        const val KNEE_ANGLE = "kneeAngle"
+        const val TORSO_ANGLE = "torsoAngle"
+
         /** Minimum landmark visibility to trust a joint (health-trainer-conventions skill). */
         const val MIN_VISIBILITY = 0.55f
 
@@ -105,8 +126,22 @@ class SquatRule : ExerciseRule {
         /** Torso lean soft warning when shoulder-hip-ankle drops below this (pose-rule-authoring). */
         const val TORSO_LEAN_MIN_ANGLE = 145f
 
+        /**
+         * Reference torso angle for a fully pitched-over trunk. The torso score ramps from 100 at
+         * [TORSO_LEAN_MIN_ANGLE] down to 0 here. Single source for the scorer's torso ramp. MVP
+         * default; tune with footage.
+         */
+        const val TORSO_FLAT_ANGLE = 90f
+
         /** Depth failure when the rep's minimum knee angle stays above this (pose-rule-authoring). */
         const val DEPTH_MAX_KNEE_ANGLE = 120f
+
+        /**
+         * Reference knee angle for a fully-standing (no descent) leg. The depth score ramps from 100
+         * at [DEPTH_MAX_KNEE_ANGLE] down to 0 here (a rep that never bent the knee scores 0 depth).
+         * Single source for the scorer's depth ramp. MVP default; tune with footage.
+         */
+        const val STANDING_KNEE_ANGLE = 170f
 
         /**
          * Tracker rep-segmentation threshold: a frame counts as a descent when the knee angle drops

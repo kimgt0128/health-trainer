@@ -102,6 +102,8 @@ class SetTracker(private val rule: ExerciseRule) {
         if (holdFrames.isEmpty()) return
         val feedbacks = holdFrames.map { rule.evaluate(it) }
         val failures = rule.aggregateRep(feedbacks)
+        // Persisted hold aggregate from the same feedbacks aggregateRep saw (no recomputation).
+        val metrics = rule.aggregateRepMetrics(feedbacks)
         currentReps.add(
             RepRecord(
                 setNo = currentSetNo,
@@ -110,6 +112,7 @@ class SetTracker(private val rule: ExerciseRule) {
                 failures = failures,
                 startTimestampMs = holdFrames.first().timestampMs,
                 endTimestampMs = holdFrames.last().timestampMs,
+                metrics = metrics,
             ),
         )
     }
@@ -121,5 +124,6 @@ class SetTracker(private val rule: ExerciseRule) {
         failures = failures,
         startTimestampMs = startTimestampMs,
         endTimestampMs = endTimestampMs,
+        metrics = metrics,
     )
 }

@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
+*.egg-info/
 .pytest_cache/
 # local data/artifacts — these live in Google Drive health_training/, not in git
 data/

@@ -64,4 +64,9 @@ dependencies {
     // Optional on-device form classifier (ASSIST signal only; the app runs fine without the model).
     // Used by com.healthtrainer.app.ml.TfliteFormClassifier to run the gitignored squat_form.tflite.
     implementation("org.tensorflow:tensorflow-lite:2.16.1")
+
+    // JVM unit tests for the pure :app glue (registry wiring, presentation mapping). Camera /
+    // MediaPipe / TFLite paths still require a device; these cover the Context-free logic only.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("com.google.truth:truth:1.4.4")
 }

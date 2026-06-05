@@ -47,6 +47,7 @@ object FeedbackText {
         "knees_caving_in" -> "무릎이 안쪽으로 모임 (모델)"
         "heels_off_ground" -> "뒤꿈치가 들림 (모델)"
         "asymmetric_squat" -> "좌우 비대칭 (모델)"
+        "incorrect" -> "푸쉬업 자세 확인 필요 (모델)"
         else -> "$label (모델)"
     }
 

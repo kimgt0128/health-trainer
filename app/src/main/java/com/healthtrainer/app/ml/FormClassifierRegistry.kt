@@ -3,6 +3,8 @@ package com.healthtrainer.app.ml
 import android.content.Context
 import com.healthtrainer.core.exercise.ExerciseType
 import com.healthtrainer.core.features.ExerciseFeatureExtractor
+import com.healthtrainer.core.features.PushUpFeatureExtractor
+import com.healthtrainer.core.features.RepFeatureExtractor
 import com.healthtrainer.core.features.SquatFeatureExtractor
 
 /**
@@ -27,16 +29,28 @@ object FormClassifierRegistry {
      * Static description of one exercise's classifier wiring. Kept separate from the live
      * [FormClassifier] so the registry table has no [Context] dependency and stays a pure data map.
      *
-     * @property extractor the `:core` extractor that produces this model's input vector. REUSED from
-     *                     `:core` — features are never recomputed in `:app`.
+     * Exactly ONE of [extractor] (frame-level, e.g. squat) or [repExtractor] (rep-level, e.g. push-up)
+     * is non-null — that picks how the model's input is built (a single normalized frame vs. the
+     * just-closed rep's per-frame feedbacks). Both are REUSED from `:core`; features are never
+     * recomputed in `:app`.
+     *
+     * @property extractor    the `:core` FRAME-level extractor, or null if this model is rep-level.
+     * @property repExtractor the `:core` REP-level extractor, or null if this model is frame-level.
      * @property modelAsset path under `assets/` for the `.tflite` (e.g. `"models/squat_form.tflite"`).
      * @property labels    class names in the model's output order (index-aligned to its logits).
      */
     data class Spec(
-        val extractor: ExerciseFeatureExtractor,
+        val extractor: ExerciseFeatureExtractor? = null,
+        val repExtractor: RepFeatureExtractor? = null,
         val modelAsset: String,
         val labels: List<String>,
-    )
+    ) {
+        init {
+            require((extractor == null) != (repExtractor == null)) {
+                "Spec needs exactly one of extractor (frame-level) or repExtractor (rep-level)"
+            }
+        }
+    }
 
     /**
      * The 6 squat-form classes the ml track's model emits, in output order. Three of these
@@ -56,16 +70,31 @@ object FormClassifierRegistry {
     const val SQUAT_MODEL_ASSET = "models/squat_form.tflite"
 
     /**
+     * The push-up binary form classes, in the model's output order. The model is judged once per
+     * completed rep (rep-level); `incorrect` surfaces as a hint, `correct` is suppressed by the
+     * fusion gate (it adds nothing beyond the rules).
+     */
+    val PUSH_UP_LABELS: List<String> = listOf("correct", "incorrect")
+
+    /** Asset path of the push-up form model (gitignored binary; absent until the ml track drops it). */
+    const val PUSH_UP_MODEL_ASSET = "models/pushup_form.tflite"
+
+    /**
      * The registry table. ONE entry per exercise that has a model. Add a line here to extend.
      * Exercises absent from this map have no classifier (rules-only) — that is the default.
      */
     private val REGISTRY: Map<ExerciseType, Spec> = mapOf(
         ExerciseType.SQUAT to Spec(
-            extractor = SquatFeatureExtractor(),
+            extractor = SquatFeatureExtractor(),       // frame-level
             modelAsset = SQUAT_MODEL_ASSET,
             labels = SQUAT_LABELS,
         ),
-        // PUSH_UP / PLANK: no model yet -> not registered -> forExercise returns null (rules only).
+        ExerciseType.PUSH_UP to Spec(
+            repExtractor = PushUpFeatureExtractor(),    // rep-level: judged once per completed rep
+            modelAsset = PUSH_UP_MODEL_ASSET,
+            labels = PUSH_UP_LABELS,
+        ),
+        // PLANK: no model yet -> not registered -> forExercise returns null (rules only).
     )
 
     /**
@@ -90,4 +119,11 @@ object FormClassifierRegistry {
      * never recomputed in `:app`.
      */
     fun extractorFor(type: ExerciseType): ExerciseFeatureExtractor? = REGISTRY[type]?.extractor
+
+    /**
+     * The `:core` REP-level feature extractor paired with [type]'s model, or `null` when [type] uses
+     * a frame-level extractor (squat) or has no model. The pipeline uses this for exercises whose form
+     * is judged over a whole completed rep (push-up) rather than a single frame.
+     */
+    fun repExtractorFor(type: ExerciseType): RepFeatureExtractor? = REGISTRY[type]?.repExtractor
 }

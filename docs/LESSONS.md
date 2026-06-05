@@ -8,6 +8,24 @@
 - 고친 방법: `BackHandler`+버튼으로 복귀; 렌더링을 **자동맞춤(bbox) + 해부학적 정립(NOSE를 위로) + z-skew 축소**로 좌표 가정과 무관하게 견고화.
 - 되먹임: 원칙 "모든 화면에 복귀 경로", "좌표 투영은 가정 대신 데이터로 정립/자동맞춤". 부가: 이번에 `weight` import internal 버그(LESSON 2건 위)가 재발할 뻔했으나 기존 교훈이 **즉시 막음** — compound 작동 확인.
 
+### 2026-06-04 — 푸쉬업 assist는 닫히는 TOP 프레임이 아니라 rep 전체로 판정
+- 무엇: 스쿼트 frame-level assist 구조를 푸쉬업에 그대로 쓰려다, 모델 호출 시점(rep close)의 단일 프레임이 팔 펴진 **TOP**라 자세 판정에 무의미함을 발견.
+- 근본 원인: 모델 호출은 이미 rep close에만 일어나지만 입력이 "닫히는 한 프레임"이었다. 푸쉬업 form은 rep의 min/max elbow·body-line broken 비율·down-phase 비율 등 **집계**라야 의미가 있다.
+- 고친 방법: frame-level `ExerciseFeatureExtractor`는 그대로 두고 `RepFeatureExtractor`(rep의 `ExerciseFeedback` 리스트+duration→벡터)를 additive로 추가. `PushUpRule`이 이미 내는 프레임별 `elbowAngle`/`bodyLineAngle` metrics를 재사용 → 각도 재계산 없음(드리프트 0).
+- 되먹임: `CLAUDE.md`에 "assist 모델 확장 패턴(frame=`ExerciseFeatureExtractor` / rep=`RepFeatureExtractor`, 레지스트리 한 줄 등록)" 규약화. 향후 종목은 둘 중 맞는 seam을 고른다.
+
+### 2026-06-04 — 워크트리가 origin/main보다 21커밋 뒤처져 참조 파일이 없었다
+- 무엇: 푸쉬업 확장에 필요한 스쿼트 assist 파일(`SquatFeatureExtractor`/`FormClassifierRegistry` 등)이 워크트리에 없었다. 그 앱 통합은 PR #8로 origin/main에 들어가 있었고, 워크트리는 옛 main을 머지한 상태였다.
+- 근본 원인: 장수 워크트리가 main 진척을 안 따라감. 한 기능이 여러 브랜치에 걸칠 때(앱 통합=main, ml 트랙=feature branch) 확인 없이 작업을 시작.
+- 고친 방법: 작업 전 `git fetch` + 참조 파일 존재 + `origin/main..HEAD` 거리를 점검하고, origin/main을 워크트리에 머지(추가형 CLAUDE.md 충돌은 union).
+- 되먹임: 크로스-브랜치 기능 확장 전 "참조 파일이 이 워크트리에 실재하는가 + origin/main과의 거리"를 먼저 확인. (L1 "env의 git 플래그 불신"의 확장.)
+
+### 2026-06-04 — 워크트리 :app 빌드엔 ANDROID_HOME이 필요(settings 탐지 ≠ AGP 해석)
+- 무엇: 워크트리에서 `./gradlew :app:assembleDebug`가 "SDK location not found"로 실패. `:core:test`는 통과.
+- 근본 원인: `settings.gradle.kts`의 SDK 탐지(기본 경로 포함)는 `:app` *include 여부*만 결정한다. AGP의 실제 `sdk.dir` 해석엔 env `ANDROID_HOME` 또는 `local.properties`가 필요한데 워크트리엔 둘 다 없다(`local.properties`는 gitignore).
+- 고친 방법: `ANDROID_HOME=$HOME/Library/Android/sdk ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug` → BUILD SUCCESSFUL.
+- 되먹임: 워크트리에서 `:app`을 빌드할 땐 `ANDROID_HOME`을 지정한다(검증 게이트/`core-build-test` 스킬에 반영 후보).
+
 ### 2026-06-04 — 모델 통합: 전처리는 모델 안에, feature 계약은 단일 출처로 동기화
 - 무엇: 스쿼트 분류기 온디바이스 통합. MLP엔 feature 스케일링이 필요한데, 외부 스케일러를 `:app`이 재현하면 또 다른 드리프트원. 또 12-feature 정의가 `:core`(SquatFeatureExtractor)·`:app`·ml(FEATURE_COLUMNS) 3곳에 흩어짐.
 - 근본 원인: 학습 전처리와 추론 전처리가 분리되면 어긋난다. 여러 층에 흩어진 계약은 한쪽만 바뀌면 조용히 깨진다.

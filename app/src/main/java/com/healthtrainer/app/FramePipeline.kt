@@ -7,6 +7,7 @@ import com.healthtrainer.core.exercise.ExerciseFeedback
 import com.healthtrainer.core.exercise.ExerciseMode
 import com.healthtrainer.core.exercise.ExerciseRule
 import com.healthtrainer.core.features.ExerciseFeatureExtractor
+import com.healthtrainer.core.features.RepFeatureExtractor
 import com.healthtrainer.core.pose.LandmarkName
 import com.healthtrainer.core.pose.LandmarkNormalizer
 import com.healthtrainer.core.pose.PoseFrame
@@ -48,14 +49,18 @@ import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
  * TFLite inference path needs a device + the model artifact (see [TfliteFormClassifier]).
  *
  * @param formClassifier optional assist model; `null` = rules-only (the app's default, fully fine).
- * @param featureExtractor the `:core` extractor that builds [formClassifier]'s input from a frame.
- *                         Required iff a classifier is supplied; features are sourced from `:core`,
- *                         never recomputed here.
+ * @param featureExtractor the `:core` FRAME-level extractor that builds [formClassifier]'s input from
+ *                         the single closing frame (squat). Features are sourced from `:core`.
+ * @param repFeatureExtractor the `:core` REP-level extractor (push-up): builds the model input from
+ *                         the just-closed rep's per-frame feedbacks + duration, since the closing
+ *                         frame alone is the uninformative TOP. Exactly one of [featureExtractor] /
+ *                         [repFeatureExtractor] is wired per exercise (or neither = rules-only).
  */
 class FramePipeline(
     rule: ExerciseRule,
     private val formClassifier: FormClassifier? = null,
     private val featureExtractor: ExerciseFeatureExtractor? = null,
+    private val repFeatureExtractor: RepFeatureExtractor? = null,
 ) {
 
     var rule: ExerciseRule = rule
@@ -100,7 +105,7 @@ class FramePipeline(
 
         // Form-model ASSIST: run ONLY when a rep just closed (off the per-frame hot path). Reuses the
         // already-normalized frame; features come from :core. Null unless it passes the fusion gate.
-        val formAssist = if (closedRep != null) classifyAssist(normFrame) else null
+        val formAssist = if (closedRep != null) classifyAssist(normFrame, closedRep) else null
 
         return FrameOutcome(
             feedback = feedback,
@@ -117,10 +122,22 @@ class FramePipeline(
      * surfaced [FormPrediction] only when it should become a UI assist hint, else `null` (defer to
      * rules). Cheap to call with no model: short-circuits before touching `:core`/TFLite.
      */
-    private fun classifyAssist(normFrame: PoseFrame): FormPrediction? {
+    private fun classifyAssist(normFrame: PoseFrame, closedRep: RepRecord): FormPrediction? {
         val classifier = formClassifier ?: return null
-        val extractor = featureExtractor ?: return null
-        val features = extractor.extract(normFrame) ?: return null   // null = model can't run -> rules
+        val features: FloatArray = when {
+            // Rep-level (push-up): score the just-closed rep's per-frame feedbacks (reused from :core,
+            // no recompute) + its duration. The single closing frame is the TOP — uninformative here.
+            repFeatureExtractor != null -> {
+                val feedbacks = setTracker.lastClosedRepFrameFeedbacks ?: return null
+                repFeatureExtractor.extract(
+                    feedbacks,
+                    closedRep.endTimestampMs - closedRep.startTimestampMs,
+                )
+            }
+            // Frame-level (squat): score the single closing frame.
+            featureExtractor != null -> featureExtractor.extract(normFrame)
+            else -> null
+        } ?: return null // null = model can't run on this rep/frame -> defer to rules.
         return fuseAssist(classifier.classify(features))
     }
 

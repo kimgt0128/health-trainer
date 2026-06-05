@@ -1,5 +1,6 @@
 package com.healthtrainer.core.tracker
 
+import com.healthtrainer.core.exercise.ExerciseFeedback
 import com.healthtrainer.core.exercise.ExerciseType
 import com.healthtrainer.core.exercise.FeedbackCode
 
@@ -48,10 +49,17 @@ data class ExerciseSession(
 /**
  * A rep as segmented by [RepStateMachine], *before* the [SetTracker] assigns its set/rep numbers.
  * Carries everything except [RepRecord.setNo] / [RepRecord.repNo].
+ *
+ * [frameFeedbacks] is **transient** (in-memory only) — the per-frame [ExerciseFeedback]s buffered for
+ * this rep, in order, ending with the closing TOP frame. It feeds the rep-level
+ * [com.healthtrainer.core.features.RepFeatureExtractor] (push-up assist model) so features are built
+ * from the rule's own metrics with zero angle recomputation. It is NOT part of the persisted
+ * [RepRecord]; the default `emptyList()` keeps existing callers non-breaking.
  */
 data class RepRecordData(
     val valid: Boolean,
     val failures: Set<FeedbackCode>,
     val startTimestampMs: Long,
     val endTimestampMs: Long,
+    val frameFeedbacks: List<ExerciseFeedback> = emptyList(),
 )

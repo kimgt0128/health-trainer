@@ -64,6 +64,13 @@ def main(argv=None) -> int:
         "leakage). --no-group-by-clip uses the LEAKY rep-random split (for comparison only).",
     )
     p.add_argument("--cv-folds", type=int, default=5, help="grouped (by-clip) k-fold CV folds")
+    p.add_argument(
+        "--granularity",
+        choices=["rep", "clip"],
+        default="rep",
+        help="rep=one row per segmented rep (app-aligned baseline); clip=one row per whole video "
+        "(uses ALL clips, matches the dataset's clip-level labels — comparison experiment).",
+    )
     args = p.parse_args(argv)
 
     import json
@@ -93,8 +100,14 @@ def main(argv=None) -> int:
     dataset_root = kagglehub.dataset_download(DATASET_HANDLE)
     task_path = _ensure_pose_task(args.run_dir)
 
-    # 2) video -> per-rep rows (MediaPipe per-frame angles -> segment_reps -> rep_features).
-    df = build_pushup_dataframe(dataset_root, task_path)
+    # 2) video -> rows. rep-level (default, app-aligned) or clip-level (1 clip = 1 sample, uses
+    #    all clips — additional comparison experiment; not a drop-in for the rep-level in-app assist).
+    if args.granularity == "clip":
+        from healthtrainer_ml.pushup_video_features import build_pushup_clip_dataframe
+
+        df = build_pushup_clip_dataframe(dataset_root, task_path)
+    else:
+        df = build_pushup_dataframe(dataset_root, task_path)
     X, y = split_features_labels(df)
     groups = df["clip"].tolist()
     n_clips = len(set(groups))
@@ -158,6 +171,7 @@ def main(argv=None) -> int:
 
     metrics = {
         "model": args.model,
+        "granularity": args.granularity,
         "split": "group_by_clip" if args.group_by_clip else "rep_random(LEAKY)",
         "n_reps": int(len(y)),
         "n_clips": int(n_clips),

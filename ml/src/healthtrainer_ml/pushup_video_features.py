@@ -133,6 +133,19 @@ def rep_features(rep_frames):
     ]
 
 
+def clip_features(frames):
+    """CLIP-LEVEL aggregation (additional experiment): aggregate a WHOLE clip's frames as one
+    sample, with the same 10 ``FEATURE_COLUMNS`` as the rep-level path. Lets the clip-level
+    model use ALL clips (incl. those whose form never produces a clean rep), matching this
+    dataset's clip-level labels (``Correct sequence`` / ``Wrong sequence``). ``None`` on no
+    elbow sample, like ``rep_features``.
+
+    NOTE: clip granularity differs from the app's rep-level inference, so this is a
+    comparison/analysis model, NOT a drop-in for the in-app assist (which stays rep-level).
+    """
+    return rep_features(frames)
+
+
 # ---------------------------------------------------------------------------------------------
 # Colab-only video extraction. Heavy deps (cv2, mediapipe) imported LAZILY inside the function
 # so importing this module on a mediapipe-less machine is fine (lazy-import contract, L3/L4).
@@ -301,6 +314,62 @@ def build_pushup_dataframe(dataset_root, task_model_path):  # pragma: no cover
         f"[pushup] done: {len(rows)} rep rows from "
         f"{total - failed_clips - zero_rep_clips}/{total} clips "
         f"({zero_rep_clips} yielded 0 reps, {failed_clips} extract-failed)",
+        flush=True,
+    )
+
+    df = pd.DataFrame(rows, columns=[*FEATURE_COLUMNS, "label", "clip", "rep_index"])
+    validate_pushup_dataframe(df)
+    return df
+
+
+def build_pushup_clip_dataframe(dataset_root, task_model_path):  # pragma: no cover
+    """CLIP-LEVEL table (additional experiment): ONE ROW PER CLIP = ``clip_features`` over the
+    whole clip's frames (no rep segmentation), so ALL clips are used — matching this dataset's
+    clip-level labels. Same ``FEATURE_COLUMNS`` as the rep-level path; see ``clip_features`` for
+    the granularity caveat. Colab-only (cv2 + mediapipe); pandas imported lazily.
+    """
+    import glob
+    import os
+
+    import pandas as pd
+
+    from healthtrainer_ml.pushup_pose_dataset import (
+        FEATURE_COLUMNS,
+        validate_pushup_dataframe,
+    )
+
+    all_clips = []
+    for folder, label in (("Correct sequence", 0), ("Wrong sequence", 1)):
+        for clip in sorted(glob.glob(os.path.join(dataset_root, folder, "*.mp4"))):
+            all_clips.append((folder, label, clip))
+
+    total = len(all_clips)
+    rows = []
+    skipped = 0
+    print(f"[pushup-clip] aggregating {total} clips (1 clip = 1 sample) ...", flush=True)
+    for i, (folder, label, clip) in enumerate(all_clips, 1):
+        name = os.path.basename(clip)
+        try:
+            per_frame = extract_pushup_frames(clip, task_model_path)
+        except Exception as e:
+            skipped += 1
+            print(f"  [{i}/{total}] {folder}/{name} -> EXTRACT FAILED ({e})", flush=True)
+            continue
+        feats = clip_features(per_frame)
+        if feats is None:
+            skipped += 1
+            print(f"  [{i}/{total}] {folder}/{name} -> no elbow sample, skipped", flush=True)
+            continue
+        row = dict(zip(FEATURE_COLUMNS, feats))
+        row["label"] = label
+        row["clip"] = name
+        row["rep_index"] = 0
+        rows.append(row)
+        print(f"  [{i}/{total}] {folder}/{name} -> 1 row ({len(per_frame)} frames)", flush=True)
+
+    print(
+        f"[pushup-clip] done: {len(rows)} clip rows from {total - skipped}/{total} clips "
+        f"({skipped} skipped)",
         flush=True,
     )
 

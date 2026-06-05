@@ -24,6 +24,8 @@ class PushUpRule : ExerciseRule {
 
     override val exerciseType: ExerciseType = ExerciseType.PUSH_UP
 
+    override val mode: ExerciseMode = ExerciseMode.REP_COUNTED
+
     override fun evaluate(frame: PoseFrame): ExerciseFeedback {
         val elbow = averagedAngle(frame, ELBOW_TRIPLES)
         val bodyLine = averagedAngle(frame, BODY_LINE_TRIPLES)

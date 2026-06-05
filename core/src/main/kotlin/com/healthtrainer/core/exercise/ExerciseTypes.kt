@@ -8,6 +8,16 @@ import com.healthtrainer.core.pose.PoseFrame
 enum class ExerciseType { SQUAT, PUSH_UP, PLANK }
 
 /**
+ * How the tracker accounts for an exercise. Each [ExerciseRule] declares its own mode, so the
+ * [com.healthtrainer.core.tracker.SetTracker] dispatches on behavior, not on a specific
+ * [ExerciseType] literal.
+ *
+ * - [REP_COUNTED] — reps are segmented and counted (squat, push-up): TOP -> descent -> TOP.
+ * - [HOLD]        — a single static hold judged once at the end of the set (plank).
+ */
+enum class ExerciseMode { REP_COUNTED, HOLD }
+
+/**
  * Where a single frame sits within a movement.
  *
  * - [READY]  — a neutral/standing-by phase (reserved for the tracker; rules emit it sparingly).
@@ -70,6 +80,13 @@ data class ExerciseFeedback(
  */
 interface ExerciseRule {
     val exerciseType: ExerciseType
+
+    /**
+     * How the tracker accounts for this exercise (rep-counted vs. a single hold). The rule owns
+     * this so the tracker never branches on a specific [ExerciseType] — adding a new hold-type
+     * exercise just declares [ExerciseMode.HOLD].
+     */
+    val mode: ExerciseMode
 
     /** Evaluate a single (already normalized) frame. */
     fun evaluate(frame: PoseFrame): ExerciseFeedback

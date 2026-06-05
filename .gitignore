@@ -31,4 +31,8 @@ _workspace/
 
 # MediaPipe model bundle (large binary; downloaded at build time)
 app/src/main/assets/*.task
+
+# On-device form-classifier models (large binaries; dropped by the ml track, see assets/models/README)
+app/src/main/assets/models/*.tflite
+
 .claude/mcp/.venv/

@@ -52,6 +52,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             rule = ExerciseRegistry.ruleFor(type),
             formClassifier = FormClassifierRegistry.forExercise(type, context),
             featureExtractor = FormClassifierRegistry.extractorFor(type),
+            repFeatureExtractor = FormClassifierRegistry.repExtractorFor(type),
         )
     }
 

@@ -38,6 +38,11 @@ import kotlin.math.min
  * 3. the projected points' bounding box is uniformly scaled + centered to fill the canvas (no fixed
  *    scale that could clip or shrink the figure).
  *
+ * Crucially, that orientation + bounding box are computed **once over every frame** (a stable
+ * [ReplayProjection]) rather than per frame: a per-frame box would re-normalize each pose to fill
+ * the canvas, cancelling out the very motion (e.g. squat depth) the replay exists to show. With one
+ * shared projection the scale/center stay fixed and the body visibly rises and sinks while scrubbing.
+ *
  * NOTE (requires device): Canvas rendering and slider interaction are unverified on an SDK-less
  * machine; the projection/auto-fit math and topology reuse are inspectable.
  *
@@ -62,6 +67,9 @@ fun Skeleton3DViewer(
             return@Column
         }
 
+        // One projection for the whole sequence -> fixed scale/center so motion stays visible.
+        val projection = remember(frames) { computeReplayProjection(frames) }
+
         var index by remember { mutableIntStateOf(0) }
         val safeIndex = index.coerceIn(0, frames.lastIndex)
         val frame = frames[safeIndex]
@@ -70,6 +78,7 @@ fun Skeleton3DViewer(
         SkeletonCanvas(
             landmarks = frame.landmarkMap(),
             isFailed = failures.isNotEmpty(),
+            projection = projection,
             modifier = Modifier.fillMaxWidth().weight(1f).padding(vertical = 8.dp),
         )
 
@@ -89,10 +98,68 @@ fun Skeleton3DViewer(
     }
 }
 
+/**
+ * The projection shared by every replay frame: the anatomical vertical sign plus the bounding box of
+ * all pre-projected landmarks across the whole sequence. Holding these fixed (rather than recomputing
+ * per frame) is what keeps the skeleton's scale and center stable while scrubbing.
+ */
+private data class ReplayProjection(
+    val yUp: Float,
+    val minX: Float,
+    val maxX: Float,
+    val minY: Float,
+    val maxY: Float,
+) {
+    val spanX: Float get() = (maxX - minX).coerceAtLeast(1e-3f)
+    val spanY: Float get() = (maxY - minY).coerceAtLeast(1e-3f)
+
+    /** Pre-project a landmark into the oblique 2D space (mild depth skew on x, oriented vertical on y). */
+    fun pre(lm: PoseLandmark): Offset = Offset(lm.x + lm.z * DEPTH_SKEW, lm.y * yUp)
+}
+
+/**
+ * Derive the [ReplayProjection] from every frame: the vertical sign from average NOSE-vs-ankle height
+ * (robust to a few missing landmarks) and the bounding box from all pre-projected points.
+ */
+private fun computeReplayProjection(frames: List<SkeletonReplayFrame>): ReplayProjection {
+    var noseSum = 0f
+    var noseN = 0
+    var ankleSum = 0f
+    var ankleN = 0
+    for (f in frames) {
+        val lms = f.landmarkMap()
+        lms[LandmarkName.NOSE]?.let { noseSum += it.y; noseN++ }
+        (lms[LandmarkName.LEFT_ANKLE] ?: lms[LandmarkName.RIGHT_ANKLE])?.let { ankleSum += it.y; ankleN++ }
+    }
+    val yUp = if (noseN > 0 && ankleN > 0 && noseSum / noseN < ankleSum / ankleN) -1f else 1f
+
+    var minX = Float.MAX_VALUE
+    var maxX = -Float.MAX_VALUE
+    var minY = Float.MAX_VALUE
+    var maxY = -Float.MAX_VALUE
+    var any = false
+    for (f in frames) {
+        for (lm in f.landmarkMap().values) {
+            val px = lm.x + lm.z * DEPTH_SKEW
+            val py = lm.y * yUp
+            if (px < minX) minX = px
+            if (px > maxX) maxX = px
+            if (py < minY) minY = py
+            if (py > maxY) maxY = py
+            any = true
+        }
+    }
+    if (!any) {
+        return ReplayProjection(yUp, 0f, 1f, 0f, 1f)
+    }
+    return ReplayProjection(yUp, minX, maxX, minY, maxY)
+}
+
 @Composable
 private fun SkeletonCanvas(
     landmarks: Map<LandmarkName, PoseLandmark>,
     isFailed: Boolean,
+    projection: ReplayProjection,
     modifier: Modifier = Modifier,
 ) {
     val color = if (isFailed) SkeletonGraphics.RED else SkeletonGraphics.GREEN
@@ -100,40 +167,30 @@ private fun SkeletonCanvas(
     Canvas(modifier = modifier) {
         if (landmarks.isEmpty()) return@Canvas
 
-        // Orientation: render the figure upright (NOSE above ankles) whatever the world y sign is.
-        val nose = landmarks[LandmarkName.NOSE]
-        val ankle = landmarks[LandmarkName.LEFT_ANKLE] ?: landmarks[LandmarkName.RIGHT_ANKLE]
-        val yUp = if (nose != null && ankle != null && nose.y < ankle.y) -1f else 1f
-
-        // Pre-project: mild oblique depth skew on x; y carries the (oriented) vertical.
-        val pre: Map<LandmarkName, Offset> = landmarks.mapValues { (_, lm) ->
-            Offset(lm.x + lm.z * DEPTH_SKEW, lm.y * yUp)
-        }
-
-        val xs = pre.values.map { it.x }
-        val ys = pre.values.map { it.y }
-        val minX = xs.min(); val maxX = xs.max()
-        val minY = ys.min(); val maxY = ys.max()
-        val spanX = (maxX - minX).coerceAtLeast(1e-3f)
-        val spanY = (maxY - minY).coerceAtLeast(1e-3f)
-
+        // Fixed scale/center from the sequence-wide bounding box (same for every frame).
         val pad = size.minDimension * 0.12f
-        val fit = min((size.width - 2 * pad) / spanX, (size.height - 2 * pad) / spanY)
-        val originX = (size.width - spanX * fit) / 2f
-        val originY = (size.height - spanY * fit) / 2f
-
-        fun screen(o: Offset) = Offset(
-            x = originX + (o.x - minX) * fit,
-            y = originY + (maxY - o.y) * fit, // larger (up) y -> nearer the top
+        val fit = min(
+            (size.width - 2 * pad) / projection.spanX,
+            (size.height - 2 * pad) / projection.spanY,
         )
+        val originX = (size.width - projection.spanX * fit) / 2f
+        val originY = (size.height - projection.spanY * fit) / 2f
+
+        fun screen(lm: PoseLandmark): Offset {
+            val o = projection.pre(lm)
+            return Offset(
+                x = originX + (o.x - projection.minX) * fit,
+                y = originY + (projection.maxY - o.y) * fit, // larger (up) y -> nearer the top
+            )
+        }
 
         for ((a, b) in SkeletonGraphics.BONES) {
-            val pa = pre[a] ?: continue
-            val pb = pre[b] ?: continue
+            val pa = landmarks[a] ?: continue
+            val pb = landmarks[b] ?: continue
             drawLine(color = color, start = screen(pa), end = screen(pb), strokeWidth = 6f)
         }
-        for (o in pre.values) {
-            drawCircle(color = color, radius = 8f, center = screen(o))
+        for (lm in landmarks.values) {
+            drawCircle(color = color, radius = 8f, center = screen(lm))
         }
     }
 }

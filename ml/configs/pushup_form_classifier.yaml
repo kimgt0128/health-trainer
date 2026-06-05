@@ -1,0 +1,36 @@
+# Push-up FORM classifier config (rep-level binary: correct / incorrect).
+#
+# Unlike exercise_classifier / phase_classifier (sequence landmark models), this is a
+# rep-level TABULAR model: one row == one rep, features pre-aggregated by the app :core
+# PushUpFeatureExtractor. So it has NO sequence_length / landmarks / per_landmark_features
+# / normalization block — its contract is the FEATURE order + labels below, which MUST
+# equal healthtrainer_ml.pushup_pose_dataset (and :core PushUpFeatureExtractor.FEATURE_NAMES).
+# A reorder/rename here silently breaks app inference (ml/LESSONS.md L4).
+task: pushup_form_classifier
+
+# ⚠️ source schema UNVERIFIED locally (no Kaggle auth) — confirm in Colab. See
+# healthtrainer_ml/pushup_pose_dataset.py module docstring.
+source_dataset: mohamadashrafsalama/pushup
+source_file: pushup/pushup_features.csv   # PLACEHOLDER — verify real path in Colab
+
+labels:
+  0: correct
+  1: incorrect
+
+# Order == :core PushUpFeatureExtractor.FEATURE_NAMES (rep-level). DO NOT reorder.
+features:
+  - min_elbow_angle
+  - max_elbow_angle
+  - mean_elbow_angle
+  - elbow_angle_range
+  - min_body_line_angle
+  - mean_body_line_angle
+  - body_line_broken_ratio
+  - visible_frame_ratio
+  - rep_duration_ms
+  - down_phase_ratio
+
+model:
+  baseline: hist_gradient_boosting   # default (beat RF on squat, ml/LESSONS.md L5)
+  alternative: random_forest         # --model rf
+  integration_min_macro_f1: 0.80     # assist hint only; rules-only app works without it

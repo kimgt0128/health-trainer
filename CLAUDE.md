@@ -23,6 +23,7 @@
 | 2026-06-04 | compound-engineering 스킬 + docs/LESSONS.md 추가 | skills/compound-engineering, docs/LESSONS.md | 실수→교훈→하네스 되먹임 실천(시드 4건) |
 | 2026-06-04 | PR 한글 작성 규약 추가 | CLAUDE.md (작업 규약) | 사용자 요청: PR 제목·본문을 한글로 |
 | 2026-06-04 | 푸쉬업 assist 모델 확장 (rep-level seam) + 확장 패턴 규약화 | :core(RepFeatureExtractor/PushUpFeatureExtractor), :app, ml/, docs | 스쿼트 구조 재사용; 종목 추가 시 seam 선택 + 레지스트리 1줄 |
+| 2026-06-05 | ml-data-engineer에 "데이터셋 inspect-우선" 원칙 추가 | agents/ml-data-engineer.md, docs/LESSONS.md | 푸쉬업 데이터셋을 feature CSV로 가정해 전면 재작업 → 어댑터 작성 전 실제 구조 확인 강제 |
 
 ## 작업 규약
 - **PR 제목과 본문은 한글로 작성한다.** (`gh pr create`의 `--title`/`--body` 모두 한글.) 코드 식별자·경로·지표·`feat:`/`fix:` 같은 conventional-commit 접두사는 영어 그대로 두되, 설명 문장은 한글로 쓴다.

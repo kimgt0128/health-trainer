@@ -8,6 +8,8 @@
 
 **트리거:** Health Trainer 기능 구현·MVP 진행·새 슬라이스 추가·이전 슬라이스 보완/재실행·워크트리 작업을 요청하면 `mvp-pipeline` 스킬을 사용하라. 단순 질문(개념 설명 등)은 직접 응답 가능. 머지/리베이스/cherry-pick 충돌이 발생하면 `conflict-resolver` 에이전트를 사용하라. 버그를 고치거나·교정받거나·구조 개선점을 발견하면 `compound-engineering` 스킬로 교훈을 `docs/LESSONS.md`에 기록하고 하네스에 되먹인다.
 
+**디자인 라우팅:** 화면·UI(Compose)를 구현·개선·리뷰할 때는 **`rules/design-system.md`(디자인 규칙)를 먼저 확인**하고 그 토큰·타이포·컴포넌트·레이아웃 법칙·**정직 원칙(표시 수치는 `:core` 파생, 날조 금지)**을 따르라. `rules/`는 frontmatter(`applies-to`)로 적용 범위를 선언한다.
+
 **변경 이력:**
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
@@ -24,6 +26,7 @@
 | 2026-06-04 | PR 한글 작성 규약 추가 | CLAUDE.md (작업 규약) | 사용자 요청: PR 제목·본문을 한글로 |
 | 2026-06-04 | 푸쉬업 assist 모델 확장 (rep-level seam) + 확장 패턴 규약화 | :core(RepFeatureExtractor/PushUpFeatureExtractor), :app, ml/, docs | 스쿼트 구조 재사용; 종목 추가 시 seam 선택 + 레지스트리 1줄 |
 | 2026-06-05 | ml-data-engineer에 "데이터셋 inspect-우선" 원칙 추가 | agents/ml-data-engineer.md, docs/LESSONS.md | 푸쉬업 데이터셋을 feature CSV로 가정해 전면 재작업 → 어댑터 작성 전 실제 구조 확인 강제 |
+| 2026-06-05 | 디자인 시스템 + UI 라우팅 (`rules/design-system.md` 신설, CLAUDE.md/agents 라우팅, :core scoring/SessionSummary, 와이어프레임 결과 플로우 UI) | rules/, CLAUDE.md, agents/android-*, :core(scoring), :app(ui/theme·components·화면) | 결과 리포트를 룰 측정값에서 정직 파생; UI 작업 시 디자인 규칙 일관 적용 |
 
 ## 작업 규약
 - **PR 제목과 본문은 한글로 작성한다.** (`gh pr create`의 `--title`/`--body` 모두 한글.) 코드 식별자·경로·지표·`feat:`/`fix:` 같은 conventional-commit 접두사는 영어 그대로 두되, 설명 문장은 한글로 쓴다.

@@ -2,97 +2,108 @@ package com.healthtrainer.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Text
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.healthtrainer.app.replay.SkeletonReplayFrame
-import com.healthtrainer.core.tracker.ExerciseSession
-import com.healthtrainer.core.tracker.RepRecord
+import com.healthtrainer.app.ui.components.GhostButton
+import com.healthtrainer.app.ui.components.HeroScore
+import com.healthtrainer.app.ui.components.HRule
+import com.healthtrainer.app.ui.components.MiniStatRow
+import com.healthtrainer.app.ui.components.PrimaryButton
+import com.healthtrainer.app.ui.components.SetSummaryCard
+import com.healthtrainer.app.ui.components.TokenText
+import com.healthtrainer.app.ui.theme.Dimens
+import com.healthtrainer.app.ui.theme.Hue
+import com.healthtrainer.app.ui.theme.Type
+import com.healthtrainer.core.scoring.SessionSummary
 
 /**
- * Post-session summary: total reps / valid reps, the invalid-rep list grouped by set (rendered via
- * [FeedbackText.invalidRepLine] as `"N세트 M회차: <사유>"`), and an entry into the 3D replay.
+ * Result summary (design-system §5 결과 요약): eyebrow + h1("{운동} 요약") + a ↺ ghost (restart) ->
+ * [HeroScore] -> divider -> three mini-stats (총 반복 / 안정 / 확인) -> "세트별 요약" + one
+ * [SetSummaryCard] per set -> a primary button into the set detail.
  *
- * Totals are derived straight from the `:core` [ExerciseSession]: `sets.flatMap { it.reps }`. Rep
- * validity is `:core`'s ([RepRecord.valid]); `:app` only presents it.
+ * Every number is a real [SessionSummary] field (honesty, §0.3): the hero is `overall`, the stats are
+ * `totalReps` / `validReps` / `totalReps - validReps`, each card's score + sparkline come from its
+ * [com.healthtrainer.core.scoring.SetScore]. Captions are phrased only by [ReportPresentation] /
+ * [ExerciseUiText] — nothing is fabricated.
  *
  * NOTE (requires device): rendering is unverified on an SDK-less machine; the data derivation is
  * inspectable.
  *
- * @param onReplay  open the replay viewer (the host provides the captured [SkeletonReplayFrame]s).
- * @param onRestart return to the exercise screen for a new session.
+ * @param summary  the `:core` session summary (from `MainViewModel.summary`).
+ * @param onOpenSet open the detail for a given 1-based `setNo` (a card tap, or the primary button).
+ * @param onRestart return to the exercise screen for a new session (the ↺ ghost).
  */
 @Composable
 fun ResultScreen(
-    session: ExerciseSession,
-    replayFrames: List<SkeletonReplayFrame>,
-    onReplay: () -> Unit,
+    summary: SessionSummary,
+    onOpenSet: (Int) -> Unit,
     onRestart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val allReps = session.sets.flatMap { it.reps }
-    val totalReps = allReps.size
-    val validReps = allReps.count { it.valid }
-    val invalidBySet: List<Pair<Int, List<RepRecord>>> = session.sets
-        .map { it.setNo to it.reps.filter { rep -> !rep.valid } }
-        .filter { it.second.isNotEmpty() }
+    val scroll = rememberScrollState()
 
-    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        Text(
-            text = "운동 결과",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-        Text("총 ${totalReps}회 / 성공 ${validReps}회", fontSize = 18.sp)
-        Text("세트 수: ${session.sets.size}", fontSize = 16.sp)
+    Column(modifier = modifier.fillMaxSize().padding(horizontal = Dimens.screenPad)) {
+        Column(modifier = Modifier.weight(1f).verticalScroll(scroll)) {
+            Spacer(Modifier.height(Dimens.gapLarge))
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+            // eyebrow + h1 with the ↺ ghost on the right
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    TokenText("오늘의 운동 완료", Type.eyebrow, Hue.muted)
+                    TokenText("${ExerciseUiText.label(summary.exerciseType)} 요약", Type.h1, Hue.ink)
+                }
+                GhostButton(glyph = "↺", onClick = onRestart)
+            }
 
-        Text("교정이 필요한 회차", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(Dimens.gapLarge))
+            HeroScore(overall = summary.overall, comment = ReportPresentation.heroComment(summary))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            if (invalidBySet.isEmpty()) {
-                item { Text("모든 회차가 올바른 자세였습니다 🎉") }
+            Spacer(Modifier.height(Dimens.gapLarge))
+            HRule()
+            Spacer(Modifier.height(Dimens.gapLarge))
+
+            MiniStatRow(tiles = ReportPresentation.miniStats(summary))
+
+            Spacer(Modifier.height(Dimens.gapLarge))
+            TokenText("세트별 요약", Type.section, Hue.muted)
+            Spacer(Modifier.height(Dimens.gap))
+
+            if (summary.sets.isEmpty()) {
+                TokenText("기록된 세트가 없어요", Type.body, Hue.muted)
             } else {
-                invalidBySet.forEach { (setNo, reps) ->
-                    item {
-                        Text(
-                            text = "${setNo}세트",
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 8.dp),
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.gap)) {
+                    summary.sets.forEach { set ->
+                        SetSummaryCard(
+                            title = "${set.setNo}세트",
+                            overall = set.overall,
+                            label = ReportPresentation.setCardLabel(set),
+                            repOveralls = ReportPresentation.repOveralls(set),
+                            onClick = { onOpenSet(set.setNo) },
                         )
-                    }
-                    items(reps) { rep ->
-                        // FeedbackText.invalidRepLine(rep) -> e.g. "1세트 2회차: 스쿼트 깊이 부족"
-                        Text(FeedbackText.invalidRepLine(rep))
                     }
                 }
             }
+
+            Spacer(Modifier.height(Dimens.gapLarge))
         }
 
-        Button(
-            onClick = onReplay,
-            enabled = replayFrames.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        ) { Text("3D 리플레이 보기") }
-
-        Button(
-            onClick = onRestart,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        ) { Text("새 운동 시작") }
+        // Primary action: open the first set's detail (cards open a specific one).
+        val firstSetNo = summary.sets.firstOrNull()?.setNo
+        PrimaryButton(
+            text = firstSetNo?.let { "${it}세트 상세 보기" } ?: "세트 상세",
+            onClick = { firstSetNo?.let(onOpenSet) },
+            enabled = firstSetNo != null,
+            modifier = Modifier.padding(bottom = Dimens.gapLarge),
+        )
     }
 }

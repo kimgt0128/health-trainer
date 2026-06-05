@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,7 +30,9 @@ import androidx.core.content.ContextCompat
 import com.healthtrainer.app.pose.PoseLandmarkerHelper
 import com.healthtrainer.app.replay.SkeletonReplayStore
 import com.healthtrainer.app.ui.ExerciseScreen
+import com.healthtrainer.app.ui.ReportPresentation
 import com.healthtrainer.app.ui.ResultScreen
+import com.healthtrainer.app.ui.SetDetailScreen
 import com.healthtrainer.app.replay.Skeleton3DViewer
 
 /**
@@ -50,7 +53,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(modifier = Modifier.fillMaxSize(), color = com.healthtrainer.app.ui.theme.Hue.bg) {
                     HealthTrainerApp(viewModel)
                 }
             }
@@ -58,7 +61,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Screen { EXERCISE, RESULT, REPLAY }
+private enum class Screen { EXERCISE, RESULT, SET_DETAIL, REPLAY }
 
 @Composable
 private fun HealthTrainerApp(viewModel: MainViewModel) {
@@ -90,6 +93,8 @@ private fun HealthTrainerApp(viewModel: MainViewModel) {
     val replayStore = remember { SkeletonReplayStore(context) }
 
     var screen by remember { mutableStateOf(Screen.EXERCISE) }
+    // The set the user drilled into (drives SET_DETAIL + which rep the REPLAY shows). 1-based.
+    var selectedSetNo by remember { mutableIntStateOf(0) }
 
     if (!hasCameraPermission) {
         CameraPermissionRationale(onRequest = { permissionLauncher.launch(Manifest.permission.CAMERA) })
@@ -111,14 +116,16 @@ private fun HealthTrainerApp(viewModel: MainViewModel) {
         )
 
         Screen.RESULT -> {
-            val session = viewModel.session
-            if (session == null) {
+            val summary = viewModel.summary
+            if (summary == null) {
                 screen = Screen.EXERCISE
             } else {
                 ResultScreen(
-                    session = session,
-                    replayFrames = viewModel.replayFrames,
-                    onReplay = { screen = Screen.REPLAY },
+                    summary = summary,
+                    onOpenSet = { setNo ->
+                        selectedSetNo = setNo
+                        screen = Screen.SET_DETAIL
+                    },
                     onRestart = {
                         viewModel.resetSession()
                         screen = Screen.EXERCISE
@@ -127,12 +134,51 @@ private fun HealthTrainerApp(viewModel: MainViewModel) {
             }
         }
 
-        Screen.REPLAY -> Skeleton3DViewer(
-            frames = viewModel.replayFrames,
-            onBack = { screen = Screen.RESULT },
-            modifier = Modifier.fillMaxSize(),
-        )
+        Screen.SET_DETAIL -> {
+            val summary = viewModel.summary
+            if (summary == null) {
+                screen = Screen.EXERCISE
+            } else {
+                SetDetailScreen(
+                    summary = summary,
+                    setNo = selectedSetNo,
+                    onBack = { screen = Screen.RESULT },
+                    onReplay = { screen = Screen.REPLAY },
+                )
+            }
+        }
+
+        Screen.REPLAY -> {
+            val summary = viewModel.summary
+            // The rep to replay = this set's problem rep (first invalid, else lowest-scoring).
+            val repScore = summary?.sets
+                ?.firstOrNull { it.setNo == selectedSetNo }
+                ?.let { ReportPresentation.repToReplay(it) }
+            Skeleton3DViewer(
+                frames = replayFramesForSet(viewModel.replayFrames, selectedSetNo, repScore?.repNo),
+                repScore = repScore,
+                onBack = { screen = Screen.SET_DETAIL },
+                onSummary = { screen = Screen.RESULT },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
+}
+
+/**
+ * Narrow the captured replay frames to the set (and, if known, the specific rep) being replayed, so
+ * the viewer scrubs just that rep's motion. Falls back to the whole buffer when nothing matches (so
+ * the replay is never empty if frames exist).
+ */
+private fun replayFramesForSet(
+    all: List<com.healthtrainer.app.replay.SkeletonReplayFrame>,
+    setNo: Int,
+    repNo: Int?,
+): List<com.healthtrainer.app.replay.SkeletonReplayFrame> {
+    val byRep = if (repNo != null) all.filter { it.setNo == setNo && it.repNo == repNo } else emptyList()
+    if (byRep.isNotEmpty()) return byRep
+    val bySet = all.filter { it.setNo == setNo }
+    return bySet.ifEmpty { all }
 }
 
 @Composable

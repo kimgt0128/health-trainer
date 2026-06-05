@@ -262,22 +262,47 @@ def build_pushup_dataframe(dataset_root, task_model_path):  # pragma: no cover
         ("Wrong sequence", 1),
     ]
 
-    rows = []
+    all_clips = []
     for folder, label in folder_labels:
         clip_dir = os.path.join(dataset_root, folder)
-        clips = sorted(glob.glob(os.path.join(clip_dir, "*.mp4")))
-        for clip in clips:
+        for clip in sorted(glob.glob(os.path.join(clip_dir, "*.mp4"))):
+            all_clips.append((folder, label, clip))
+
+    total = len(all_clips)
+    rows = []
+    zero_rep_clips = 0
+    failed_clips = 0
+    print(f"[pushup] extracting features from {total} clips (MediaPipe per frame) ...", flush=True)
+    for i, (folder, label, clip) in enumerate(all_clips, 1):
+        name = os.path.basename(clip)
+        try:
             per_frame = extract_pushup_frames(clip, task_model_path)
-            reps = segment_reps(per_frame)
-            for rep_index, rep in enumerate(reps):
-                feats = rep_features(rep)
-                if feats is None:
-                    continue  # rep had no usable elbow sample -> not a model row.
-                row = dict(zip(FEATURE_COLUMNS, feats))
-                row["label"] = label
-                row["clip"] = os.path.basename(clip)
-                row["rep_index"] = rep_index
-                rows.append(row)
+        except Exception as e:  # one unreadable clip must not kill the whole run.
+            failed_clips += 1
+            print(f"  [{i}/{total}] {folder}/{name} -> EXTRACT FAILED ({e})", flush=True)
+            continue
+        reps = segment_reps(per_frame)
+        n_rows = 0
+        for rep_index, rep in enumerate(reps):
+            feats = rep_features(rep)
+            if feats is None:
+                continue  # rep had no usable elbow sample -> not a model row.
+            row = dict(zip(FEATURE_COLUMNS, feats))
+            row["label"] = label
+            row["clip"] = name
+            row["rep_index"] = rep_index
+            rows.append(row)
+            n_rows += 1
+        if n_rows == 0:
+            zero_rep_clips += 1
+        print(f"  [{i}/{total}] {folder}/{name} -> {n_rows} reps ({len(per_frame)} frames)", flush=True)
+
+    print(
+        f"[pushup] done: {len(rows)} rep rows from "
+        f"{total - failed_clips - zero_rep_clips}/{total} clips "
+        f"({zero_rep_clips} yielded 0 reps, {failed_clips} extract-failed)",
+        flush=True,
+    )
 
     df = pd.DataFrame(rows, columns=[*FEATURE_COLUMNS, "label", "clip", "rep_index"])
     validate_pushup_dataframe(df)

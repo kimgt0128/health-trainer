@@ -55,36 +55,50 @@ python ml/src/train_squat_form_classifier.py \
 The script writes `squat_form_classifier.joblib`, `labels_squat_form.json`,
 `feature_config.json`, and `metrics_summary.json` into the Drive run directory.
 
-## Push-up form classifier (binary, rep-level)
+## Push-up form classifier (binary: correct / incorrect)
 
-Same shape as squat, but **rep-level** and **binary**: one verdict per completed rep.
+The Kaggle dataset `mohamadashrafsalama/pushup` turned out to be **raw videos**
+(`Correct sequence/*.mp4`, `Wrong sequence/*.mp4`), not a feature CSV — so training runs
+MediaPipe per frame -> angles -> features, on **Colab**. Both granularities share the same 10
+features (== `:core` `PushUpFeatureExtractor.FEATURE_NAMES`):
 
 ```text
-dataset: mohamadashrafsalama/pushup        # ⚠️ schema UNVERIFIED — confirm columns in Colab
-labels:  correct, incorrect
-features (rep-level, ORDER = :core PushUpFeatureExtractor.FEATURE_NAMES):
-  min_elbow_angle, max_elbow_angle, mean_elbow_angle, elbow_angle_range,
-  min_body_line_angle, mean_body_line_angle, body_line_broken_ratio,
-  visible_frame_ratio, rep_duration_ms, down_phase_ratio
+min_elbow_angle, max_elbow_angle, mean_elbow_angle, elbow_angle_range,
+min_body_line_angle, mean_body_line_angle, body_line_broken_ratio,
+visible_frame_ratio, rep_duration_ms, down_phase_ratio
 ```
 
-- **Counting is NOT the model's job.** Rep counting + valid/invalid stays 100% the rule
-  engine + `RepStateMachine`/`SetTracker` (`aggregateRep`). The model is an ASSIST hint
-  shown only at rep end (`correct` is suppressed; only `incorrect` surfaces).
-- The Kaggle dataset's exact schema (file path, columns, per-frame vs. rep-aggregated) is
-  **unverified locally** (no Kaggle creds). See the `⚠️ SCHEMA UNVERIFIED` block in
-  `pushup_pose_dataset.py`: confirm columns in Colab, and if the source is per-frame raw
-  landmarks, add a rep-aggregation step before training.
+- **`--granularity rep`** (default, app-aligned): segment each video into reps (mirrors
+  `RepStateMachine`), one row per rep — the same unit the app feeds at inference.
+- **`--granularity clip`**: one row per whole video — matches this dataset's clip-level labels
+  and uses ALL clips. A comparison experiment, not the in-app unit.
+
+**Counting is NOT the model's job** — rep counting + valid/invalid stays the rule engine +
+`RepStateMachine`/`SetTracker`. The model is an ASSIST hint at rep end (`correct` is suppressed).
+
+### Results (group-by-clip split + grouped 5-fold CV — leakage-free)
+
+| experiment | unit | n | CV accuracy | CV macro-F1 |
+|---|---|--:|--:|--:|
+| rep-level (ships to app) | rep | 54 | 0.835 +/- 0.133 | 0.810 +/- 0.157 |
+| clip-level (analysis) | clip | 100 | **0.860 +/- 0.037** | **0.858 +/- 0.038** |
+
+clip-level wins on this dataset (more data + matches the clip labels -> far lower variance), but
+**rep-level is what ships to the app** (it matches rep-level inference). Full write-up + the
+honest methodology (we caught a fake 100% from group leakage): `docs/pushup-form-results.md`.
 
 ```bash
-python ml/src/train_pushup_form_classifier.py \
-  --run-dir "$RUNS_DIR/pushup_form_classifier_v1"   # HGB default (--model rf for baseline)
+# rep-level baseline (app):
+python ml/src/train_pushup_form_classifier.py --run-dir "$RUNS_DIR/pushup_form_classifier_v1"
+# clip-level experiment:
+python ml/src/train_pushup_form_classifier.py --run-dir "$RUNS_DIR/pushup_form_classifier_clip_v1" --granularity clip
 ```
 
-Writes `pushup_form_classifier.joblib`, `labels_pushup_form.json`, `feature_config.json`,
-`metrics_summary.json`. After training + TFLite export (out of scope this slice), drop
-`pushup_form.tflite` into `app/src/main/assets/models/` — the app is rules-only until then
-and never crashes for a missing model.
+Each writes `pushup_form_classifier.joblib`, `labels_pushup_form.json`, `feature_config.json`,
+`metrics_summary.json`. TFLite export + app integration are out of scope (the app stays
+rules-only until a `pushup_form.tflite` is dropped into `app/src/main/assets/models/`, and never
+crashes for a missing model).
+
 
 ## Contract with the Android app
 

@@ -25,6 +25,7 @@
 | 2026-06-04 | compound-engineering 스킬 + docs/LESSONS.md 추가 | skills/compound-engineering, docs/LESSONS.md | 실수→교훈→하네스 되먹임 실천(시드 4건) |
 | 2026-06-04 | PR 한글 작성 규약 추가 | CLAUDE.md (작업 규약) | 사용자 요청: PR 제목·본문을 한글로 |
 | 2026-06-04 | 푸쉬업 assist 모델 확장 (rep-level seam) + 확장 패턴 규약화 | :core(RepFeatureExtractor/PushUpFeatureExtractor), :app, ml/, docs | 스쿼트 구조 재사용; 종목 추가 시 seam 선택 + 레지스트리 1줄 |
+| 2026-06-05 | ml-data-engineer에 "데이터셋 inspect-우선" 원칙 추가 | agents/ml-data-engineer.md, docs/LESSONS.md | 푸쉬업 데이터셋을 feature CSV로 가정해 전면 재작업 → 어댑터 작성 전 실제 구조 확인 강제 |
 | 2026-06-05 | 디자인 시스템 + UI 라우팅 (`rules/design-system.md` 신설, CLAUDE.md/agents 라우팅, :core scoring/SessionSummary, 와이어프레임 결과 플로우 UI) | rules/, CLAUDE.md, agents/android-*, :core(scoring), :app(ui/theme·components·화면) | 결과 리포트를 룰 측정값에서 정직 파생; UI 작업 시 디자인 규칙 일관 적용 |
 
 ## 작업 규약

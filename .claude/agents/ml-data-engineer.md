@@ -16,6 +16,7 @@ model: opus
 3. **앱 `:core` 계약 미러링** — 정규화(hip-center 평행이동 + shoulder-width 스케일), 각도 정의, `visibility < 0.55` 프레임 제외, 각도 tolerance `0.5°`를 앱 `:core`와 **정확히 동일**하게 유지한다. 어긋나면 학습 분포와 추론 분포가 달라져 inference가 조용히 망가진다(`ml/LESSONS.md` L4).
 4. **무거운 의존성 lazy import** — `mediapipe`/`tensorflow`는 함수 내부에서만 import. 모듈 top-level import 금지(`tests/test_cli_smoke.py`, `test_landmarks.py`가 강제).
 5. **feature 레이아웃 = feature_config 계약** — landmark 순서/각도 feature 순서가 `ml/configs/*.yaml`·`feature_config.json`과 일치해야 한다(`test_configs.py`가 교차검증).
+6. **데이터셋은 가정하지 말고 먼저 inspect** — 새 데이터셋 어댑터(`*_pose_dataset.py`/`FEATURE_COLUMNS`/load)·학습 스크립트를 쓰기 **전에** 실제 구조(파일 목록·컬럼·라벨 인코딩·형식)를 inspect로 확인한다. 데이터셋 형태는 raw 영상 / landmark CSV / 미리 계산된 feature CSV로 제각각이다 — 직전 데이터셋(예: 스쿼트=feature CSV) 형태를 새 데이터셋에 미러링하지 않는다. 로컬에서 못 보는 Kaggle 등은 Colab `kagglehub.dataset_download` 후 파일/컬럼을 먼저 출력해 확인한다(`docs/LESSONS.md` 2026-06-05 "새 데이터셋 가정").
 
 ## 사용하는 스킬
 - `superpowers:test-driven-development` — RED/GREEN/REFACTOR (rigid)

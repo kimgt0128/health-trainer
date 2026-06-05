@@ -2,6 +2,12 @@
 
 `compound-engineering` 스킬의 기록부. 실수·교정·발견을 근본 원인까지 적고, 어떤 규약/하네스/테스트로 재발을 막았는지(되먹임)를 남긴다. 최신이 위로.
 
+### 2026-06-05 — 새 데이터셋을 "이전과 같은 형태"로 가정해 어댑터를 먼저 만들었다
+- 무엇: 푸쉬업 Kaggle `mohamadashrafsalama/pushup`을 스쿼트처럼 미리 계산된 feature CSV로 가정 → CSV 로더(`pushup_pose_dataset.py`)+학습 스크립트+Colab 노트북을 그 가정 위에 구축. Colab 학습이 `'pushup/pushup_features.csv' not present`로 실패 — 실제론 **raw 영상**(Correct/Wrong sequence/*.mp4)이라 파이프라인을 영상→landmark→rep-feature로 통째로 재작성.
+- 근본 원인: 직전 데이터셋(스쿼트=feature CSV)의 형태를 새 데이터셋에 **검증 없이 일반화**. "SCHEMA UNVERIFIED" TODO만 달고도 그 위에 전체 코드를 쌓음(측정 전에 추측으로 구현).
+- 고친 방법: 노트북에 INSPECT 셀(파일·컬럼·라벨 출력)을 넣어 실제 구조 확인 → 영상용 `pushup_video_features.py`(`segment_reps`+`rep_features`, `:core` 미러) + `extract_pushup_frames`/`build_pushup_dataframe` 재작성(commit `7626885`).
+- 재발 방지(되먹임): `ml-data-engineer` 에이전트에 "새 데이터셋은 어댑터/FEATURE_COLUMNS/학습 스크립트를 쓰기 **전에** 실제 구조(파일·컬럼·형식)를 inspect로 먼저 확인하고, 이전 데이터셋 형태를 가정해 미러링하지 않는다" 규칙 추가. 데이터셋 형태는 (raw 영상 / landmark CSV / feature CSV)로 제각각임을 명시. (이 스킬 원칙 "측정 > 추측"의 구체 사례.)
+
 ### 2026-06-05 — replay 런타임 버그(뒤로가기 없음·3D 왜곡)는 디바이스 런에서야 드러남
 - 무엇: `:app`은 컴파일만 검증돼서, replay 화면에 **뒤로가기 경로가 없고**(갇힘) 3D 투영(고정 scale + y-up 가정 + 강한 z-skew)이 측면 스쿼트에서 **왜곡/반전**.
 - 근본 원인: UI 네비게이션 완결성과 좌표/투영 정확성은 컴파일러가 못 잡는다 → 런타임 검증 필요. MediaPipe world y축 방향을 단정한 게 화근.

@@ -3,37 +3,38 @@
 Dataset:
 https://www.kaggle.com/datasets/mohamadashrafsalama/pushup
 
-Mirrors ``squat_pose_dataset`` but for the push-up *assist* model. The push-up model
-is rep-level (one row == one rep): the app's :core ``PushUpFeatureExtractor`` aggregates
-a rep's per-frame elbow/body-line metrics into the ``FEATURE_COLUMNS`` below at inference
-time, so the training table must carry exactly these columns in exactly this order
-(ml/LESSONS.md L4 — feature-order drift silently corrupts inference).
+The dataset is **raw video**, not a CSV (confirmed by Colab inspection of
+``kagglehub.dataset_download("mohamadashrafsalama/pushup")``). Layout::
 
-⚠️ SCHEMA UNVERIFIED — READ BEFORE TRAINING ⚠️
-The actual schema of ``mohamadashrafsalama/pushup`` (file path inside the archive,
-column names, label encoding, and crucially whether rows are per-FRAME raw landmarks or
-already rep-AGGREGATED) could NOT be verified locally: this machine has no Kaggle auth and
-``kagglehub`` requires network + credentials. ``DATASET_FILE_PATH`` and the column mapping
-below are a reasonable PLACEHOLDER only.
-Before any real training run (in Colab, where kagglehub auth exists):
-  1. Print the archive's real contents / columns with kagglehub (see load_pushup_dataframe
-     TODO) and fix ``DATASET_FILE_PATH`` + the column names to match.
-  2. If the source is per-FRAME raw landmarks (NOT rep-aggregated), this adapter is
-     INSUFFICIENT: insert a rep-aggregation preprocessing step (group frames into reps,
-     then compute min/max/mean elbow angle, elbow_angle_range, body-line min/mean,
-     body_line_broken_ratio, visible_frame_ratio, rep_duration_ms, down_phase_ratio)
-     so the emitted columns equal :core ``PushUpFeatureExtractor.FEATURE_NAMES``.
-  3. Re-confirm the label encoding really is {0: correct, 1: incorrect}.
-The deterministic, unit-tested parts (validate / split / feature_config) do not touch the
-network and stay valid regardless; only the placeholders above need real-data confirmation.
+    Correct sequence/*.mp4   (~50 clips)  -> label 0 = correct
+    Wrong sequence/*.mp4     (~50 clips)  -> label 1 = incorrect
+    labels/correct.npy, labels/incorrect.npy   (ignored — the folder IS the label)
+
+Each ``.mp4`` is a multi-rep push-up SEQUENCE; the label is per-folder (= per-sequence).
+
+We train on **rep-level** rows (one row == one rep). The full pipeline (in
+``pushup_video_features``) is::
+
+    video -> per-frame angles (extract_pushup_frames, MediaPipe, Colab)
+          -> reps             (segment_reps, mirrors :core RepStateMachine)
+          -> 10-feature row   (rep_features, mirrors :core PushUpFeatureExtractor)
+
+Training on rep-level features means the model sees exactly the distribution the app's
+:core ``PushUpFeatureExtractor`` produces at inference time, so train↔inference match. The
+``FEATURE_COLUMNS`` below are the contract with that extractor (``FEATURE_NAMES``, surfaced
+as ``feature_config.json``); reordering them silently corrupts inference (ml/LESSONS.md L4).
+
+The deterministic, unit-tested parts (``validate`` / ``split`` / ``feature_config``) do not
+touch the network. ``build_pushup_dataframe`` (re-exported from ``pushup_video_features``)
+decodes video + runs MediaPipe and is Colab-only (heavy deps imported lazily).
 """
 from __future__ import annotations
 
 DATASET_HANDLE = "mohamadashrafsalama/pushup"
 
-# ⚠️ PLACEHOLDER — unverified. Confirm the real path inside the Kaggle archive in Colab
-# (see load_pushup_dataframe TODO). The handle's archive layout is unknown locally.
-DATASET_FILE_PATH = "pushup/pushup_features.csv"
+# Raw-video dataset: the rows are built per-rep from video, not loaded from a file in the
+# archive. Kept for feature_config provenance ("the source is video, processed to rep rows").
+DATASET_SOURCE = "raw video: Correct sequence/*.mp4 (label 0), Wrong sequence/*.mp4 (label 1)"
 
 # Order == app :core PushUpFeatureExtractor.FEATURE_NAMES (rep-level). DO NOT reorder:
 # the model consumes positional features, so a reorder breaks inference (LESSONS.md L4).
@@ -67,36 +68,17 @@ def validate_pushup_dataframe(df) -> None:
         raise ValueError(f"expected labels {expected}, got {labels}")
 
 
-def load_pushup_dataframe():
-    """Load the Kaggle push-up dataset as a pandas DataFrame.
+def build_pushup_dataframe(dataset_root, task_model_path):  # pragma: no cover
+    """Build the rep-level training table from the raw-video dataset.
 
-    Imports kagglehub lazily so unit tests can import this module without network IO.
-
-    ⚠️ SCHEMA UNVERIFIED (see module docstring). ``DATASET_FILE_PATH`` and the resulting
-    columns are UNCONFIRMED locally (no Kaggle auth on this machine). In Colab, before
-    trusting this, inspect the real archive/columns, e.g.::
-
-        import kagglehub
-        from kagglehub import KaggleDatasetAdapter
-        df = kagglehub.load_dataset(KaggleDatasetAdapter.PANDAS, DATASET_HANDLE, "<real_file>")
-        print(df.columns.tolist()); print(df.head())
-
-    then set ``DATASET_FILE_PATH`` and align column names to ``FEATURE_COLUMNS``. If the
-    archive is per-FRAME raw landmarks rather than rep-AGGREGATED rows, add a rep-aggregation
-    step here (group frames -> reps -> compute the FEATURE_COLUMNS) before validate.
+    Thin re-export of ``pushup_video_features.build_pushup_dataframe`` so callers that already
+    import this adapter (the train CLI) get the builder from one place. Colab-only: the
+    underlying function decodes video + runs MediaPipe (cv2 / mediapipe imported lazily there),
+    so importing THIS module stays network/heavy-dep free.
     """
-    import kagglehub
-    from kagglehub import KaggleDatasetAdapter
+    from healthtrainer_ml.pushup_video_features import build_pushup_dataframe as _build
 
-    df = kagglehub.load_dataset(
-        KaggleDatasetAdapter.PANDAS,
-        DATASET_HANDLE,
-        DATASET_FILE_PATH,
-    )
-    # TODO(unverified): if the loaded frame is per-frame raw landmarks, aggregate to
-    # rep-level FEATURE_COLUMNS here before validating. See module docstring.
-    validate_pushup_dataframe(df)
-    return df
+    return _build(dataset_root, task_model_path)
 
 
 def split_features_labels(df):
@@ -108,7 +90,8 @@ def feature_config() -> dict:
     return {
         "task": "pushup_form_classifier",
         "source_dataset": DATASET_HANDLE,
-        "source_file": DATASET_FILE_PATH,
+        "source": DATASET_SOURCE,
+        "granularity": "rep",
         "features": list(FEATURE_COLUMNS),
         "labels": {str(k): v for k, v in LABELS.items()},
     }

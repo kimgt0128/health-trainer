@@ -6,13 +6,22 @@ This directory holds the OPTIONAL per-exercise TensorFlow Lite form classifiers 
 
 ## Expected files
 
-| File               | Exercise | Input → Output                          | Produced by |
-|--------------------|----------|-----------------------------------------|-------------|
-| `squat_form.tflite`| Squat    | `[1,12]` float32 → `[1,6]` probabilities | ml track (Colab export) |
+| File                | Exercise | Level | Input → Output                           | Produced by |
+|---------------------|----------|-------|------------------------------------------|-------------|
+| `squat_form.tflite` | Squat    | frame | `[1,12]` float32 → `[1,6]` probabilities | ml track (Colab export) |
+| `pushup_form.tflite`| Push-up  | rep   | `[1,10]` float32 → `[1,2]` probabilities | ml track (Colab export) |
 
-The 12 inputs are `SquatFeatureExtractor.FEATURE_NAMES` (from `:core`), in that exact order. The 6
-output classes, in order, are `FormClassifierRegistry.SQUAT_LABELS`:
+The squat model is **frame-level**: its 12 inputs are `SquatFeatureExtractor.FEATURE_NAMES` (from
+`:core`), in that exact order. The 6 output classes, in order, are `FormClassifierRegistry.SQUAT_LABELS`:
 `correct, shallow_squat, forward_lean, knees_caving_in, heels_off_ground, asymmetric_squat`.
+
+The push-up model is **rep-level** (scored once per completed rep, not per frame): its 10 inputs are
+`PushUpFeatureExtractor.FEATURE_NAMES` (from `:core`), in that exact order — `min_elbow_angle,
+max_elbow_angle, mean_elbow_angle, elbow_angle_range, min_body_line_angle, mean_body_line_angle,
+body_line_broken_ratio, visible_frame_ratio, rep_duration_ms, down_phase_ratio`. The 2 output classes,
+in order, are `FormClassifierRegistry.PUSH_UP_LABELS`: `correct, incorrect`. Both exercises are already
+registered in `FormClassifierRegistry.REGISTRY` — only the `.tflite` binary needs dropping here to
+enable the assist hint (the app runs rules-only until then).
 
 ## These are gitignored
 

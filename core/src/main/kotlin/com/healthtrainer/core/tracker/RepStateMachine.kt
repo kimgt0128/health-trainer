@@ -52,11 +52,14 @@ class RepStateMachine(private val rule: ExerciseRule) {
                 buffer.add(feedback)
                 if (rule.isTop(feedback)) {
                     val failures = rule.aggregateRep(buffer)
+                    // Capture the rep's per-frame feedbacks for the rep-level feature extractor
+                    // (push-up assist) BEFORE clearing the buffer.
                     val rep = RepRecordData(
                         valid = failures.isEmpty(),
                         failures = failures,
                         startTimestampMs = repStartMs,
                         endTimestampMs = frame.timestampMs,
+                        frameFeedbacks = buffer.toList(),
                     )
                     state = State.TOP
                     buffer.clear()

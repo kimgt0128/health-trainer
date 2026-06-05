@@ -1,5 +1,6 @@
 package com.healthtrainer.core.tracker
 
+import com.healthtrainer.core.exercise.ExerciseFeedback
 import com.healthtrainer.core.exercise.ExerciseMode
 import com.healthtrainer.core.exercise.ExerciseRule
 import com.healthtrainer.core.pose.PoseFrame
@@ -34,6 +35,16 @@ class SetTracker(private val rule: ExerciseRule) {
     private val currentReps = mutableListOf<RepRecord>()
     private val holdFrames = mutableListOf<PoseFrame>()
 
+    /**
+     * The per-frame [ExerciseFeedback]s of the rep that the most recent [onFrame] call closed, or
+     * `null` if that call did not close a rep (mid-rep / hold / no set open). Feeds the rep-level
+     * [com.healthtrainer.core.features.RepFeatureExtractor] (push-up assist): when [onFrame] returns
+     * a non-null [RepRecord], read this for that rep's frame feedbacks. Set only on a rep close;
+     * otherwise left null so a stale rep is never re-classified.
+     */
+    var lastClosedRepFrameFeedbacks: List<ExerciseFeedback>? = null
+        private set
+
     /** Begin a new set (1-based set numbers increment across the session). */
     fun startSet() {
         inSet = true
@@ -54,6 +65,8 @@ class SetTracker(private val rule: ExerciseRule) {
             return null
         }
         val data = repMachine?.onFrame(frame) ?: return null
+        // A rep just closed: surface its per-frame feedbacks for the rep-level extractor.
+        lastClosedRepFrameFeedbacks = data.frameFeedbacks
         val record = data.toRecord(setNo = currentSetNo, repNo = currentReps.size + 1)
         currentReps.add(record)
         return record

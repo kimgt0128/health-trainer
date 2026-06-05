@@ -55,6 +55,37 @@ python ml/src/train_squat_form_classifier.py \
 The script writes `squat_form_classifier.joblib`, `labels_squat_form.json`,
 `feature_config.json`, and `metrics_summary.json` into the Drive run directory.
 
+## Push-up form classifier (binary, rep-level)
+
+Same shape as squat, but **rep-level** and **binary**: one verdict per completed rep.
+
+```text
+dataset: mohamadashrafsalama/pushup        # ⚠️ schema UNVERIFIED — confirm columns in Colab
+labels:  correct, incorrect
+features (rep-level, ORDER = :core PushUpFeatureExtractor.FEATURE_NAMES):
+  min_elbow_angle, max_elbow_angle, mean_elbow_angle, elbow_angle_range,
+  min_body_line_angle, mean_body_line_angle, body_line_broken_ratio,
+  visible_frame_ratio, rep_duration_ms, down_phase_ratio
+```
+
+- **Counting is NOT the model's job.** Rep counting + valid/invalid stays 100% the rule
+  engine + `RepStateMachine`/`SetTracker` (`aggregateRep`). The model is an ASSIST hint
+  shown only at rep end (`correct` is suppressed; only `incorrect` surfaces).
+- The Kaggle dataset's exact schema (file path, columns, per-frame vs. rep-aggregated) is
+  **unverified locally** (no Kaggle creds). See the `⚠️ SCHEMA UNVERIFIED` block in
+  `pushup_pose_dataset.py`: confirm columns in Colab, and if the source is per-frame raw
+  landmarks, add a rep-aggregation step before training.
+
+```bash
+python ml/src/train_pushup_form_classifier.py \
+  --run-dir "$RUNS_DIR/pushup_form_classifier_v1"   # HGB default (--model rf for baseline)
+```
+
+Writes `pushup_form_classifier.joblib`, `labels_pushup_form.json`, `feature_config.json`,
+`metrics_summary.json`. After training + TFLite export (out of scope this slice), drop
+`pushup_form.tflite` into `app/src/main/assets/models/` — the app is rules-only until then
+and never crashes for a missing model.
+
 ## Contract with the Android app
 
 `configs/*.yaml` + the emitted `feature_config.json` are the single source of truth for

@@ -22,10 +22,18 @@
 | 2026-06-04 | :app 빌드 가능화 + 환경 현실 갱신 (settings SDK 탐지 강화: env→local.properties→기본경로; ExerciseScreen 잘못된 weight import 제거) | settings.gradle.kts, :app, CLAUDE.md | dev 머신에 SDK 생김 → 실제 :app:assembleDebug로 컴파일 검증, import 컴파일 에러 발견·수정 |
 | 2026-06-04 | compound-engineering 스킬 + docs/LESSONS.md 추가 | skills/compound-engineering, docs/LESSONS.md | 실수→교훈→하네스 되먹임 실천(시드 4건) |
 | 2026-06-04 | PR 한글 작성 규약 추가 | CLAUDE.md (작업 규약) | 사용자 요청: PR 제목·본문을 한글로 |
+| 2026-06-04 | 푸쉬업 assist 모델 확장 (rep-level seam) + 확장 패턴 규약화 | :core(RepFeatureExtractor/PushUpFeatureExtractor), :app, ml/, docs | 스쿼트 구조 재사용; 종목 추가 시 seam 선택 + 레지스트리 1줄 |
 
 ## 작업 규약
 - **PR 제목과 본문은 한글로 작성한다.** (`gh pr create`의 `--title`/`--body` 모두 한글.) 코드 식별자·경로·지표·`feat:`/`fix:` 같은 conventional-commit 접두사는 영어 그대로 두되, 설명 문장은 한글로 쓴다.
 - 커밋은 작은 단위로 쪼개고, 메시지 접두사는 conventional commit(`feat:`, `fix:`, `docs:`, `chore:` …)을 따른다.
+
+## assist 모델 확장 패턴 (종목 추가 시)
+운동별 optional form 모델은 rule engine **보조 신호**일 뿐이다 — **카운팅·valid 판정의 source of truth는 항상 `:core` rule + `RepStateMachine`/`SetTracker`(`aggregateRep`)**, 모델이 아니다. 모델 결과는 rep 종료 시점의 힌트로만 표시한다. 새 종목 모델은 다음 표준 경로로 붙인다(기존 파이프라인·ViewModel 변경 없음 = OCP):
+1. **feature seam 선택** — 프레임 단위 판정이면 `:core` `ExerciseFeatureExtractor`(스쿼트), rep 전체 집계가 필요하면 `RepFeatureExtractor`(푸쉬업)를 구현. `featureNames()` 순서 = ml `feature_config` 순서(계약, 테스트로 고정 / 드리프트 단일 지점).
+2. **레지스트리 한 줄** — `app/.../ml/FormClassifierRegistry`에 `Spec(extractor 또는 repExtractor, modelAsset, labels)` 등록(`forExercise`/`extractorFor`/`repExtractorFor`가 자동 소비).
+3. **ml 트랙** — `ml/src/healthtrainer_ml/<운동>_pose_dataset.py` + `train_<운동>_form_classifier.py`(스쿼트/푸쉬업 미러, HGB 기본·heavy는 lazy import). 산출물 Drive `runs/` → 앱 `assets/models/<운동>_form.tflite`(gitignore). 모델 없으면 rules-only로 정상 동작(crash 금지).
+4. **표시** — `FeedbackText.modelFormLabel`에 라벨 한글 매핑. `correct`류는 `fuseAssist`가 억제하고, 표현은 단정("틀림") 대신 "확인 필요" 톤.
 
 ## 환경 현실 (매 세션 유의)
 - 이 dev 머신: **JDK 17 + Android SDK(`~/Library/Android/sdk`, platform-35) 있음.** (CI·다른 환경은 SDK 없을 수 있음.)

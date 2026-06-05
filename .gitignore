@@ -36,3 +36,4 @@ app/src/main/assets/*.task
 app/src/main/assets/models/*.tflite
 
 .claude/mcp/.venv/
+.claude/scheduled_tasks.lock

@@ -169,6 +169,11 @@ private fun HealthTrainerApp(viewModel: MainViewModel) {
  * Narrow the captured replay frames to the set (and, if known, the specific rep) being replayed, so
  * the viewer scrubs just that rep's motion. Falls back to the whole buffer when nothing matches (so
  * the replay is never empty if frames exist).
+ *
+ * Invariant: [SkeletonReplayFrame.setNo]/[repNo] and the [repNo] picked from `SetScore`
+ * ([ReportPresentation.repToReplay]) both derive from the SAME `SetTracker` rep numbering, so they
+ * align by construction. The `ifEmpty { all }` fallback only guards a genuinely missing capture — it
+ * is not meant to paper over a numbering drift; if these two producers ever diverge, fix the source.
  */
 private fun replayFramesForSet(
     all: List<com.healthtrainer.app.replay.SkeletonReplayFrame>,

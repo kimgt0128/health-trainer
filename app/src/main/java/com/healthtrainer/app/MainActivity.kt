@@ -129,6 +129,7 @@ private fun HealthTrainerApp(viewModel: MainViewModel) {
 
         Screen.REPLAY -> Skeleton3DViewer(
             frames = viewModel.replayFrames,
+            onBack = { screen = Screen.RESULT },
             modifier = Modifier.fillMaxSize(),
         )
     }

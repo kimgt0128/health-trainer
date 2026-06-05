@@ -1,14 +1,15 @@
 name: PR Review
 
 # Auto-review every PR with two layers:
-#   1. core-checks   — deterministic :core gate (tests + purity). Always runs, no secret needed.
-#   2. claude-review — LLM review by the pr-reviewer agent. Runs only if ANTHROPIC_API_KEY is set,
-#                      and skips gracefully (green) otherwise.
+#   1. core-checks  — deterministic :core gate (tests + purity). Always runs, no secret needed.
+#   2. codex-review — LLM review by the pr-reviewer agent, powered by OpenAI Codex. Runs only if
+#                     OPENAI_API_KEY is set, and skips gracefully (green) otherwise.
 #
 # Enable the LLM review by adding the secret once:
-#   gh secret set ANTHROPIC_API_KEY --body "<your anthropic api key>"
-# (or repo Settings -> Secrets and variables -> Actions). Criteria live in
-# .claude/agents/pr-reviewer.md so the bot and a human reviewer judge by the same rubric.
+#   gh secret set OPENAI_API_KEY --body "<your openai api key>"
+# Criteria live in .claude/agents/pr-reviewer.md so the bot and a human judge by the same rubric.
+# Cost note: the OpenAI API bills per token (not free). Reviews are short; set `model:` below to a
+# cheaper model if you want to cap cost. The deterministic :core gate needs no key.
 
 on:
   pull_request:
@@ -16,8 +17,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  id-token: write
 
 jobs:
   core-checks:
@@ -33,41 +32,51 @@ jobs:
       - name: ":core tests + purity (bundled core-build-test script)"
         run: bash .claude/skills/core-build-test/scripts/core-test.sh
 
-  claude-review:
-    name: "LLM review (pr-reviewer)"
+  # Gate the Codex jobs on the secret being present, so a repo without OPENAI_API_KEY stays green.
+  secret-check:
+    name: "Check OPENAI_API_KEY"
     runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.check.outputs.present }}
     steps:
-      - name: Check for ANTHROPIC_API_KEY
-        id: secret
+      - id: check
         env:
-          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -n "$KEY" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::ANTHROPIC_API_KEY not set — skipping LLM review. The :core gate still ran. Add the secret to enable pr-reviewer."
+            echo "::notice::OPENAI_API_KEY not set — skipping Codex review. The :core gate still ran. Add the secret to enable it."
           fi
 
-      - name: Checkout PR
-        if: steps.secret.outputs.present == 'true'
-        uses: actions/checkout@v6
+  codex-review:
+    name: "Codex LLM review (pr-reviewer)"
+    needs: secret-check
+    if: needs.secret-check.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      message: ${{ steps.codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@v6
         with:
-          fetch-depth: 1
-
-      - name: pr-reviewer
-        if: steps.secret.outputs.present == 'true'
-        uses: anthropics/claude-code-action@v1
+          fetch-depth: 0 # full history so Codex can diff base...head
+      - id: codex
+        uses: openai/codex-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          # model: o4-mini   # optional — set a specific/cheaper model; leave empty for Codex's default
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
+            BASE: ${{ github.event.pull_request.base.ref }}   HEAD: ${{ github.event.pull_request.head.ref }}
 
-            You are the **pr-reviewer** for the Health Trainer project. First read
-            `.claude/agents/pr-reviewer.md` (your evaluation criteria) and, as needed,
-            `.claude/skills/health-trainer-conventions/SKILL.md` and
-            `.claude/skills/pose-rule-authoring/SKILL.md`. Then review THIS PR's diff (`gh pr diff`).
+            You are the **pr-reviewer** for the Health Trainer project. Read `.claude/agents/pr-reviewer.md`
+            (your evaluation criteria) and, as needed, `.claude/skills/health-trainer-conventions/SKILL.md`
+            and `.claude/skills/pose-rule-authoring/SKILL.md`. Then review ONLY this PR's changes
+            (`git diff origin/${{ github.event.pull_request.base.ref }}...HEAD`).
 
             Judge whether anything is "weird" for this project, focusing on:
             - :core purity — no android/androidx/MediaPipe imports under core/ (would break JDK-only tests)
@@ -79,8 +88,29 @@ jobs:
               `// requires device`; :app not building on SDK-less CI is expected, not a defect
             - correctness bugs, contract/type-shape mismatches
 
-            Post a concise top-level summary via `gh pr comment` ending with a one-line VERDICT
-            (LGTM / comments / blocker). Use inline comments for specific issues. Signal over noise —
-            don't nitpick style. Only post GitHub comments; don't reply as chat messages.
-          claude_args: |
-            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            Output ONLY the review text, in Korean (한글), concise. Group findings by severity
+            (blocker / should-fix / nit), each with file:line + reason. End with one line:
+            **VERDICT: GO / comments / blocker**. Do NOT post anything yourself — your final message is
+            captured and posted as the PR comment by the next job.
+
+  post-review:
+    name: "Post Codex review comment"
+    needs: [secret-check, codex-review]
+    if: needs.secret-check.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          REVIEW: ${{ needs.codex-review.outputs.message }}
+        with:
+          script: |
+            const review = process.env.REVIEW || "_(Codex가 리뷰 메시지를 반환하지 않았습니다 — 워크플로의 output 이름을 확인하세요.)_";
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "## 🤖 Codex 리뷰 (pr-reviewer 기준)\n\n" + review,
+            });

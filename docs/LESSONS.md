@@ -2,6 +2,12 @@
 
 `compound-engineering` 스킬의 기록부. 실수·교정·발견을 근본 원인까지 적고, 어떤 규약/하네스/테스트로 재발을 막았는지(되먹임)를 남긴다. 최신이 위로.
 
+### 2026-06-05 — 워크트리 안에서 `git rev-parse --show-toplevel`로 워크트리를 중첩 생성
+- 무엇: 한 슬라이스 워크트리 안에서 `cd "$(git rev-parse --show-toplevel)"` 후 `git worktree add .claude/worktrees/B`를 실행 → show-toplevel이 메인 repo가 아니라 *현재 워크트리* 루트를 반환해, B가 A 안에 중첩 생성됨(`…/pushup-app-finish/.claude/worktrees/pushup-tflite-export`). 작업·테스트·커밋·푸시는 무사했지만 정리가 번거롭고 부모 워크트리 제거가 막힘.
+- 근본 원인: `git rev-parse --show-toplevel`은 "현재" 워크트리 기준이라 워크트리 안에서 메인 repo 경로 대용으로 쓰면 틀린다. shell cwd가 직전 슬라이스 작업으로 워크트리 안에 머물러 있던 것도 한몫.
+- 고친 방법: 중첩 워크트리를 `git worktree remove --force`로 제거(작업은 이미 푸시됨). 이후 worktree·repo-level git 작업은 **메인 repo 절대경로**(`git -C /abs/main …`)로 수행.
+- 되먹임: `mvp-pipeline` 워크트리 생성 단계에 "메인 repo 절대경로 사용" 원칙 명시. (L "env의 git 신호 불신"의 확장 — git 명령의 기준 위치를 단정하지 말 것.)
+
 ### 2026-06-05 — 새 데이터셋을 "이전과 같은 형태"로 가정해 어댑터를 먼저 만들었다
 - 무엇: 푸쉬업 Kaggle `mohamadashrafsalama/pushup`을 스쿼트처럼 미리 계산된 feature CSV로 가정 → CSV 로더(`pushup_pose_dataset.py`)+학습 스크립트+Colab 노트북을 그 가정 위에 구축. Colab 학습이 `'pushup/pushup_features.csv' not present`로 실패 — 실제론 **raw 영상**(Correct/Wrong sequence/*.mp4)이라 파이프라인을 영상→landmark→rep-feature로 통째로 재작성.
 - 근본 원인: 직전 데이터셋(스쿼트=feature CSV)의 형태를 새 데이터셋에 **검증 없이 일반화**. "SCHEMA UNVERIFIED" TODO만 달고도 그 위에 전체 코드를 쌓음(측정 전에 추측으로 구현).

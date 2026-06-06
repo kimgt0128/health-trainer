@@ -45,3 +45,31 @@ Kaggle `mohamadashrafsalama/pushup` — **영상 단위 라벨**(`Correct sequen
 > "학습 결과가 100%로 나와 의심했고, 원인이 group leakage임을 찾아 영상 단위 split + group CV로
 > 정직한 수치를 냈다. 데이터셋 라벨 단위(clip)와 앱 추론 단위(rep) 두 가지로 비교했고 —
 > clip 0.860±0.037, rep 0.835±0.133 — 앱엔 추론과 일치하는 rep-level을 탑재한다."
+
+## TFLite export path (앱 탑재 경로)
+
+sklearn 모델(`pushup_form_classifier.joblib`)은 **TFLite로 변환되지 않는다.** 그래서 앱 `:core`
+`FormClassifierRegistry`의 PUSH_UP Spec(`models/pushup_form.tflite`, 라벨 `[correct, incorrect]`)이
+로드할 모델이 없었다. 스쿼트가 같은 문제를 Keras 모델(`train_squat_form_mlp.py`)로 풀었듯,
+푸쉬업도 동일하게 **`ml/src/train_pushup_form_mlp.py`** 로 푼다.
+
+- **같은 데이터·같은 정직한 방법론.** rep-level 행 + 영상(clip) 단위 split + grouped k-fold CV를
+  sklearn 트레이너와 그대로 재사용한다(누수 없는 동일 수치 산출).
+- **작고 강하게 규제된 모델(tiny-data).** rep ≈ 54개라 큰 MLP는 과적합한다. 기본 head는
+  **로지스틱 회귀**(`Normalization` → `Dense(2, softmax)`), 옵션으로 작은 `Dense(8)`+L2+dropout.
+  `Normalization`을 **모델 내부**에 넣어 앱은 RAW feature를 그대로 넣는다(외부 스케일러 드리프트 없음,
+  스쿼트와 동일 계약).
+- **4-아티팩트 세트** 산출: `pushup_form.tflite`, `labels_pushup_form.json`, `feature_config.json`,
+  `metrics_summary.json`. `feature_config.json`의 feature 순서 = `:core`
+  `PushUpFeatureExtractor.FEATURE_NAMES`(10개, 순서 고정) = ml `FEATURE_COLUMNS`(드리프트 = 추론
+  무음 손상, ml/LESSONS.md L4).
+
+**정직 원칙:** 이 TFLite 모델은 데이터가 작아 **약한 baseline 보조**일 뿐이다. 카운팅·valid 판정의
+source of truth는 항상 rule engine + state machine이고, 앱은 저신뢰/`correct` 예측을 억제한다. 오래
+가는 산출물은 **export PATH 자체** — 앱으로 직접 촬영한 rep 단위 라벨 데이터가 쌓이면 같은 경로가 더
+좋은 모델을 낸다. CV는 분산이 크다(0.835 ± 0.133, n이 작아서) — 수치를 과장하지 않는다.
+
+**실행:** `ml/notebooks/pushup_training_colab.ipynb`의 "Export path: Keras -> TFLite" 셀이
+`train_pushup_form_mlp.py`를 돌려 4개 아티팩트를 만들고 4개 존재를 확인한다. tensorflow는 Colab 전용
+(lazy import)이므로 이 머신에서의 실제 변환·온디바이스 추론은 **미검증(Colab only)** 이다. 산출
+`pushup_form.tflite` → 앱 `app/src/main/assets/models/pushup_form.tflite`.

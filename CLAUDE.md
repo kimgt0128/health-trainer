@@ -27,6 +27,7 @@
 | 2026-06-04 | 푸쉬업 assist 모델 확장 (rep-level seam) + 확장 패턴 규약화 | :core(RepFeatureExtractor/PushUpFeatureExtractor), :app, ml/, docs | 스쿼트 구조 재사용; 종목 추가 시 seam 선택 + 레지스트리 1줄 |
 | 2026-06-05 | ml-data-engineer에 "데이터셋 inspect-우선" 원칙 추가 | agents/ml-data-engineer.md, docs/LESSONS.md | 푸쉬업 데이터셋을 feature CSV로 가정해 전면 재작업 → 어댑터 작성 전 실제 구조 확인 강제 |
 | 2026-06-05 | 디자인 시스템 + UI 라우팅 (`rules/design-system.md` 신설, CLAUDE.md/agents 라우팅, :core scoring/SessionSummary, 와이어프레임 결과 플로우 UI) | rules/, CLAUDE.md, agents/android-*, :core(scoring), :app(ui/theme·components·화면) | 결과 리포트를 룰 측정값에서 정직 파생; UI 작업 시 디자인 규칙 일관 적용 |
+| 2026-06-05 | mvp-pipeline 워크트리 생성에 "메인 repo 절대경로" 원칙 명시 | skills/mvp-pipeline, docs/LESSONS.md | 워크트리 안 `git rev-parse --show-toplevel`이 현재 워크트리를 반환해 워크트리 중첩 생성된 실수 되먹임 |
 
 ## 작업 규약
 - **PR 제목과 본문은 한글로 작성한다.** (`gh pr create`의 `--title`/`--body` 모두 한글.) 코드 식별자·경로·지표·`feat:`/`fix:` 같은 conventional-commit 접두사는 영어 그대로 두되, 설명 문장은 한글로 쓴다.

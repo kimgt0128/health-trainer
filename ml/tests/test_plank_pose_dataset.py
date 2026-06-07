@@ -21,12 +21,15 @@ def test_label_contract_is_app_facing():
 
 
 def test_feature_contract_order_is_stable():
-    # Body-frame contract. Order MUST equal :core PlankFeatureExtractor.featureNames().
+    # Body-frame contract (8). Order MUST equal :core PlankFeatureExtractor.featureNames().
     assert FEATURE_COLUMNS == [
         "body_line_angle",
+        "knee_line_angle",
         "hip_perp_offset_signed",
         "hip_perp_offset_abs",
         "hip_axial_ratio",
+        "knee_perp_offset_signed",
+        "knee_axial_ratio",
         "required_visible_ratio",
     ]
 
@@ -43,6 +46,8 @@ def test_keypoint_mapping_is_audited_coco18():
         "right_elbow": 3,
         "left_hip": 11,
         "right_hip": 8,
+        "left_knee": 12,
+        "right_knee": 9,
         "left_ankle": 13,
         "right_ankle": 10,
     }
@@ -82,10 +87,13 @@ def test_split_features_labels_returns_expected_shapes():
 
 # ---- body-frame helpers --------------------------------------------------------------------
 
-def _row(shoulder, hip, ankle, label=1, drop=()):
-    """A synthetic source row: L and R of each part collapsed onto one point (so the center is
-    exactly that point). Coordinates are image-style, y-DOWN. ``drop`` blanks a body part.
+def _row(shoulder, hip, ankle, label=1, drop=(), knee=None):
+    """A synthetic source row in COCO-18 layout (image-style, y-DOWN). L and R of each part
+    collapse onto one point. ``knee`` defaults midway hip->ankle (on the body). ``drop`` blanks
+    a body part by name.
     """
+    if knee is None:
+        knee = ((hip[0] + ankle[0]) / 2.0, (hip[1] + ankle[1]) / 2.0)
     row = {str(i): float("nan") for i in range(36)}
 
     def setpair(left_name, right_name, p):
@@ -98,6 +106,7 @@ def _row(shoulder, hip, ankle, label=1, drop=()):
 
     setpair("left_shoulder", "right_shoulder", shoulder)
     setpair("left_hip", "right_hip", hip)
+    setpair("left_knee", "right_knee", knee)
     setpair("left_ankle", "right_ankle", ankle)
     row["label"] = label
     return row
@@ -125,20 +134,19 @@ _ANKLE = (2.0, 0.0)
 # ---- sign convention (matches PlankRule: sag/hips_low > 0) ----------------------------------
 
 def test_horizontal_sagging_hip_is_positive():
-    # hip below the shoulder->ankle line (larger y, toward ground) = sag = hips_low
     vec = _feats(_SHOULDER, (1.0, 0.3), _ANKLE, label=0)
     assert _f(vec, "hip_perp_offset_signed") > 0
 
 
 def test_horizontal_piked_hip_is_negative():
-    # hip above the line (smaller y) = pike = hips_high
     vec = _feats(_SHOULDER, (1.0, -0.3), _ANKLE, label=2)
     assert _f(vec, "hip_perp_offset_signed") < 0
 
 
-def test_straight_plank_has_max_body_line_angle_and_zero_offset():
+def test_straight_plank_has_max_angles_and_zero_offset():
     vec = _feats(_SHOULDER, (1.0, 0.0), _ANKLE)
     assert _f(vec, "body_line_angle") == pytest.approx(180.0, abs=1e-3)
+    assert _f(vec, "knee_line_angle") == pytest.approx(180.0, abs=1e-3)
     assert _f(vec, "hip_perp_offset_signed") == pytest.approx(0.0, abs=1e-9)
 
 
@@ -146,7 +154,7 @@ def test_straight_plank_has_max_body_line_angle_and_zero_offset():
 
 def test_features_are_scale_invariant_10x():
     base = _feats(_SHOULDER, (1.0, 0.3), _ANKLE)
-    scaled = _feats((0.0, 0.0), (10.0, 3.0), (20.0, 0.0))
+    scaled = _feats((0.0, 0.0), (10.0, 3.0), (20.0, 0.0), knee=(15.0, 1.5))
     for name in FEATURE_COLUMNS:
         assert _f(scaled, name) == pytest.approx(_f(base, name), abs=1e-6)
 
@@ -156,14 +164,18 @@ def test_features_are_scale_invariant_10x():
 def test_features_are_rotation_invariant():
     theta = math.radians(37)
     sh, hip, an = _SHOULDER, (1.0, 0.3), _ANKLE
+    kn = ((hip[0] + an[0]) / 2.0, (hip[1] + an[1]) / 2.0)
     base = _feats(sh, hip, an)
-    rotated = _feats(_rot(sh, theta), _rot(hip, theta), _rot(an, theta))
-    for name in ("body_line_angle", "hip_perp_offset_signed", "hip_perp_offset_abs", "hip_axial_ratio"):
+    rotated = _feats(_rot(sh, theta), _rot(hip, theta), _rot(an, theta), knee=_rot(kn, theta))
+    for name in (
+        "body_line_angle", "knee_line_angle",
+        "hip_perp_offset_signed", "hip_perp_offset_abs", "hip_axial_ratio",
+        "knee_perp_offset_signed", "knee_axial_ratio",
+    ):
         assert _f(rotated, name) == pytest.approx(_f(base, name), abs=1e-4)
 
 
 def test_sign_survives_rotation():
-    # A rotated sag is still a positive offset (rotation cannot turn a sag into a pike).
     theta = math.radians(50)
     sh, hip, an = _SHOULDER, (1.0, 0.3), _ANKLE
     rotated = _feats(_rot(sh, theta), _rot(hip, theta), _rot(an, theta), label=0)
@@ -174,8 +186,7 @@ def test_sign_survives_rotation():
 
 def test_missing_one_ankle_lowers_visible_ratio_but_still_extracts():
     vec = _feats(_SHOULDER, (1.0, 0.3), _ANKLE, drop=("right_ankle",))
-    assert _f(vec, "required_visible_ratio") == pytest.approx(5 / 6)
-    # left ankle still present -> the body frame is still computed (offset is real, not 0).
+    assert _f(vec, "required_visible_ratio") == pytest.approx(7 / 8)
     assert _f(vec, "hip_perp_offset_signed") > 0
 
 

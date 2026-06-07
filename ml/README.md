@@ -109,13 +109,17 @@ data is NOT vendored — Colab/Drive reads it at train time and cites the source
 
 Plank is a static HOLD, so the model is a frame-level ASSIST only (the rule engine owns everything).
 The source is raw PIXEL coords and its bodies sit differently in-frame from the app's MediaPipe planks,
-so the 5 features are computed in a **rotation/scale-normalized body frame** (shoulder->ankle axis,
+so the 8 features are computed in a **rotation/scale-normalized body frame** (shoulder->ankle axis,
 scale = axis length) — identical to `:core` `PlankFeatureExtractor.FEATURE_NAMES`:
 
 ```text
-body_line_angle, hip_perp_offset_signed, hip_perp_offset_abs,
-hip_axial_ratio, required_visible_ratio
+body_line_angle, knee_line_angle, hip_perp_offset_signed, hip_perp_offset_abs,
+hip_axial_ratio, knee_perp_offset_signed, knee_axial_ratio, required_visible_ratio
 ```
+
+The source label was generated from the shoulder-hip-KNEE back angle, so `knee_line_angle` and the
+knee body-frame offsets are included alongside the ankle features (an ankle-only 5-feature set only
+reached ~0.57 macro-F1; +knee recovers it to ~0.76-0.79 local HGB CV).
 
 `hip_perp_offset_signed` is the hip's signed perpendicular distance to the body axis / L; a canonical
 horizontal sag (`hips_low`) is **positive** (matches `PlankRule`). On the real data this removed the

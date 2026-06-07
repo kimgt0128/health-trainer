@@ -55,7 +55,7 @@ def test_artifact_contract_matches_core_app():
     """input [1,5] raw FEATURE_COLUMNS order; output [1,3] softmax = LABELS order."""
     from healthtrainer_ml.plank_pose_dataset import FEATURE_COLUMNS, LABELS, feature_config
 
-    assert len(FEATURE_COLUMNS) == 5
+    assert len(FEATURE_COLUMNS) == 8
     assert len(LABELS) == 3
     cfg = feature_config()
     assert cfg["features"] == FEATURE_COLUMNS

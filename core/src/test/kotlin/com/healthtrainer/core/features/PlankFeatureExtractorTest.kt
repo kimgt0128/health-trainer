@@ -6,9 +6,11 @@ import com.healthtrainer.core.geometry.Point3
 import com.healthtrainer.core.pose.LandmarkName
 import com.healthtrainer.core.pose.LandmarkName.LEFT_ANKLE
 import com.healthtrainer.core.pose.LandmarkName.LEFT_HIP
+import com.healthtrainer.core.pose.LandmarkName.LEFT_KNEE
 import com.healthtrainer.core.pose.LandmarkName.LEFT_SHOULDER
 import com.healthtrainer.core.pose.LandmarkName.RIGHT_ANKLE
 import com.healthtrainer.core.pose.LandmarkName.RIGHT_HIP
+import com.healthtrainer.core.pose.LandmarkName.RIGHT_KNEE
 import com.healthtrainer.core.pose.LandmarkName.RIGHT_SHOULDER
 import com.healthtrainer.core.pose.PoseFrame
 import com.healthtrainer.core.pose.PoseLandmark
@@ -21,12 +23,15 @@ class PlankFeatureExtractorTest {
     private val extractor = PlankFeatureExtractor()
 
     @Test
-    fun featureNames_areThe5ContractFeaturesInOrder() {
+    fun featureNames_areThe8ContractFeaturesInOrder() {
         assertThat(extractor.featureNames()).containsExactly(
             "body_line_angle",
+            "knee_line_angle",
             "hip_perp_offset_signed",
             "hip_perp_offset_abs",
             "hip_axial_ratio",
+            "knee_perp_offset_signed",
+            "knee_axial_ratio",
             "required_visible_ratio",
         ).inOrder()
     }
@@ -37,11 +42,11 @@ class PlankFeatureExtractorTest {
     }
 
     @Test
-    fun extract_returnsVectorOfSize5() {
+    fun extract_returnsVectorOfSize8() {
         val out = extractor.extract(plankFrame(shoulder = SHOULDER, hip = Point3(1f, 0f, 0f), ankle = ANKLE))
 
         assertThat(out).isNotNull()
-        assertThat(out!!.size).isEqualTo(5)
+        assertThat(out!!.size).isEqualTo(8)
     }
 
     @Test
@@ -59,10 +64,11 @@ class PlankFeatureExtractorTest {
     }
 
     @Test
-    fun straightPlank_hasMaxBodyLineAngleAndZeroOffset() {
+    fun straightPlank_hasMaxAnglesAndZeroOffset() {
         val out = extractor.extract(plankFrame(shoulder = SHOULDER, hip = Point3(1f, 0f, 0f), ankle = ANKLE))!!
 
         assertThat(out[idx("body_line_angle")]).isWithin(1e-3f).of(180f)
+        assertThat(out[idx("knee_line_angle")]).isWithin(1e-3f).of(180f)
         assertThat(out[idx("hip_perp_offset_signed")]).isWithin(1e-6f).of(0f)
         assertThat(out[idx("hip_perp_offset_abs")]).isWithin(1e-6f).of(0f)
     }
@@ -98,7 +104,11 @@ class PlankFeatureExtractorTest {
             ),
         )!!
 
-        for (name in listOf("body_line_angle", "hip_perp_offset_signed", "hip_perp_offset_abs", "hip_axial_ratio")) {
+        for (name in listOf(
+            "body_line_angle", "knee_line_angle",
+            "hip_perp_offset_signed", "hip_perp_offset_abs", "hip_axial_ratio",
+            "knee_perp_offset_signed", "knee_axial_ratio",
+        )) {
             assertThat(rotated[idx(name)]).isWithin(1e-4f).of(base[idx(name)])
         }
     }
@@ -119,12 +129,11 @@ class PlankFeatureExtractorTest {
 
     /**
      * The training source is 2D (no depth). A frame with non-zero, conflicting z on every landmark
-     * must produce the SAME `body_line_angle` (and offsets) as its z=0 projection — otherwise
-     * MediaPipe depth would drift the angle away from the 2D value the model was trained on. Locks
-     * the z=0 projection in [PlankFeatureExtractor.visiblePoint].
+     * must produce the SAME angles (and offsets) as its z=0 projection — otherwise MediaPipe depth
+     * would drift them away from the 2D values the model was trained on. Locks the z=0 projection.
      */
     @Test
-    fun bodyLineAngle_isComputedIn2D_ignoringDepth() {
+    fun anglesAreComputedIn2D_ignoringDepth() {
         val flat = extractor.extract(plankFrame(shoulder = SHOULDER, hip = Point3(1f, 0.3f, 0f), ankle = ANKLE))!!
         val withDepth = extractor.extract(
             PoseFrame(
@@ -134,6 +143,8 @@ class PlankFeatureExtractorTest {
                     RIGHT_SHOULDER to landmark(RIGHT_SHOULDER, Point3(0f, 0f, 5f)),
                     LEFT_HIP to landmark(LEFT_HIP, Point3(1f, 0.3f, -7f)),
                     RIGHT_HIP to landmark(RIGHT_HIP, Point3(1f, 0.3f, -7f)),
+                    LEFT_KNEE to landmark(LEFT_KNEE, Point3(1.5f, 0.15f, 9f)),
+                    RIGHT_KNEE to landmark(RIGHT_KNEE, Point3(1.5f, 0.15f, 9f)),
                     LEFT_ANKLE to landmark(LEFT_ANKLE, Point3(2f, 0f, 3f)),
                     RIGHT_ANKLE to landmark(RIGHT_ANKLE, Point3(2f, 0f, 3f)),
                 ),
@@ -141,17 +152,18 @@ class PlankFeatureExtractorTest {
         )!!
 
         assertThat(withDepth[idx("body_line_angle")]).isWithin(1e-3f).of(flat[idx("body_line_angle")])
+        assertThat(withDepth[idx("knee_line_angle")]).isWithin(1e-3f).of(flat[idx("knee_line_angle")])
         assertThat(withDepth[idx("hip_perp_offset_signed")]).isWithin(1e-6f).of(flat[idx("hip_perp_offset_signed")])
     }
 
     @Test
-    fun missingOneSideStillExtractsWithLowerVisibleRatio() {
+    fun missingOneAnkleStillExtractsWithLowerVisibleRatio() {
         val frame = plankFrame(shoulder = SHOULDER, hip = Point3(1f, 0.3f, 0f), ankle = ANKLE)
         val withoutRightAnkle = frame.copy(landmarks = frame.landmarks - RIGHT_ANKLE)
 
         val out = extractor.extract(withoutRightAnkle)!!
 
-        assertThat(out[idx("required_visible_ratio")]).isWithin(1e-5f).of(5f / 6f)
+        assertThat(out[idx("required_visible_ratio")]).isWithin(1e-5f).of(7f / 8f)
         assertThat(out[idx("hip_perp_offset_signed")]).isGreaterThan(0f)
     }
 
@@ -161,6 +173,15 @@ class PlankFeatureExtractorTest {
         val withoutAnkles = frame.copy(landmarks = frame.landmarks - LEFT_ANKLE - RIGHT_ANKLE)
 
         assertThat(extractor.extract(withoutAnkles)).isNull()
+    }
+
+    @Test
+    fun missingBothKnees_returnsNull() {
+        // The knee is a required (label-defining) joint now.
+        val frame = plankFrame(shoulder = SHOULDER, hip = Point3(1f, 0.3f, 0f), ankle = ANKLE)
+        val withoutKnees = frame.copy(landmarks = frame.landmarks - LEFT_KNEE - RIGHT_KNEE)
+
+        assertThat(extractor.extract(withoutKnees)).isNull()
     }
 
     @Test
@@ -198,18 +219,23 @@ class PlankFeatureExtractorTest {
         )
     }
 
-    private fun plankFrame(shoulder: Point3, hip: Point3, ankle: Point3): PoseFrame =
-        PoseFrame(
+    /** Knee defaults to the midpoint of hip and ankle (so it stays scale/rotation-consistent). */
+    private fun plankFrame(shoulder: Point3, hip: Point3, ankle: Point3, knee: Point3? = null): PoseFrame {
+        val k = knee ?: Point3((hip.x + ankle.x) / 2f, (hip.y + ankle.y) / 2f, (hip.z + ankle.z) / 2f)
+        return PoseFrame(
             timestampMs = 0L,
             landmarks = mapOf(
                 LEFT_SHOULDER to landmark(LEFT_SHOULDER, shoulder),
                 RIGHT_SHOULDER to landmark(RIGHT_SHOULDER, shoulder),
                 LEFT_HIP to landmark(LEFT_HIP, hip),
                 RIGHT_HIP to landmark(RIGHT_HIP, hip),
+                LEFT_KNEE to landmark(LEFT_KNEE, k),
+                RIGHT_KNEE to landmark(RIGHT_KNEE, k),
                 LEFT_ANKLE to landmark(LEFT_ANKLE, ankle),
                 RIGHT_ANKLE to landmark(RIGHT_ANKLE, ankle),
             ),
         )
+    }
 
     private fun landmark(name: LandmarkName, point: Point3, visibility: Float = 0.9f): PoseLandmark =
         PoseLandmark(name = name, x = point.x, y = point.y, z = point.z, visibility = visibility)

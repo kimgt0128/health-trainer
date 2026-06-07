@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Health Trainer Result Flow</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --ink: #101211;
+      --ink-2: #2a2d2b;
+      --muted: #737872;
+      --faint: #9da39c;
+      --soft: #f1f2f0;
+      --soft-2: #e9ebe8;
+      --line: #e0e3df;
+      --line-strong: #cfd4ce;
+      --camera: #121614;
+      --camera-2: #1e2420;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      word-break: keep-all;
+      overflow-wrap: normal;
+    }
+
+    .canvas {
+      width: min(1280px, 100vw);
+      min-height: 980px;
+      margin: 0 auto;
+      padding: 40px 44px 44px;
+    }
+
+    .mast {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 24px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .brand {
+      color: var(--ink);
+      font-size: 20px;
+      font-weight: 760;
+    }
+
+    .frames {
+      display: grid;
+      grid-template-columns: 380px 420px 380px;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .phone {
+      height: 856px;
+      border: 1px solid var(--line-strong);
+      border-radius: 30px;
+      background: var(--surface);
+      box-shadow: 0 22px 54px rgba(16, 18, 17, .09);
+      overflow: hidden;
+    }
+
+    .phone.detail {
+      height: 888px;
+    }
+
+    .status {
+      height: 38px;
+      padding: 13px 24px 0;
+      display: flex;
+      justify-content: space-between;
+      color: var(--ink-2);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .screen {
+      height: calc(100% - 38px);
+      padding: 22px 24px 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      color: var(--ink);
+      font-weight: 780;
+      line-height: 1.08;
+    }
+
+    h1 { font-size: 30px; }
+    h2 { font-size: 26px; }
+
+    .ghost {
+      flex: 0 0 auto;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 720;
+      background: #fff;
+    }
+
+    .hero-score {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+
+    .score {
+      font-size: 76px;
+      font-weight: 820;
+      letter-spacing: -1px;
+      line-height: .86;
+    }
+
+    .hero-score p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .rule {
+      height: 1px;
+      background: var(--line);
+      margin: 0 0 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .mini-stat {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 10px;
+    }
+
+    .mini-stat strong {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 5px;
+      white-space: nowrap;
+    }
+
+    .mini-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .section {
+      margin: 0 0 11px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 780;
+    }
+
+    .set-list {
+      display: grid;
+      gap: 9px;
+      margin-bottom: 20px;
+    }
+
+    .set-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+      display: grid;
+      gap: 11px;
+    }
+
+    .set-card.active {
+      background: var(--soft);
+      border-color: var(--line-strong);
+    }
+
+    .set-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .set-head strong,
+    .issue strong {
+      white-space: nowrap;
+      font-weight: 760;
+    }
+
+    .set-head span,
+    .issue span {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .spark {
+      height: 34px;
+      width: 100%;
+      display: block;
+    }
+
+    .spark path {
+      fill: none;
+      stroke: var(--ink);
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .spark .base {
+      stroke: var(--line-strong);
+      stroke-width: 1.2;
+    }
+
+    .button {
+      margin-top: auto;
+      height: 52px;
+      border-radius: 12px;
+      background: var(--ink);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      font-weight: 760;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 11px;
+      background: var(--soft);
+      margin-bottom: 18px;
+    }
+
+    .tab {
+      flex: 1;
+      height: 36px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 690;
+    }
+
+    .tab.active {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 2px rgba(16, 18, 17, .08);
+    }
+
+    .chart-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px 14px 12px;
+      margin-bottom: 18px;
+      background: #fff;
+    }
+
+    .chart-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+
+    .chart-head strong {
+      font-size: 15px;
+    }
+
+    .chart-head span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .chart {
+      width: 100%;
+      height: 172px;
+      display: block;
+    }
+
+    .grid-line {
+      stroke: var(--line);
+      stroke-width: 1;
+    }
+
+    .trend {
+      fill: none;
+      stroke: var(--ink);
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .trend.secondary {
+      stroke: var(--muted);
+      stroke-width: 2.4;
+      opacity: .48;
+    }
+
+    .point {
+      fill: var(--surface);
+      stroke: var(--ink);
+      stroke-width: 2.4;
+    }
+
+    .axis {
+      fill: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      padding-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .legend span::before {
+      content: "";
+      width: 16px;
+      height: 2px;
+      border-radius: 999px;
+      background: var(--ink);
+    }
+
+    .legend span:last-child::before {
+      background: var(--muted);
+      opacity: .5;
+    }
+
+    .bars {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 34px;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .bar-row span:first-child {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .track {
+      height: 6px;
+      border-radius: 999px;
+      background: var(--soft-2);
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--ink);
+    }
+
+    .issues {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .issue {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      background: #fff;
+      font-size: 14px;
+    }
+
+    .issue.strong {
+      background: var(--soft);
+      border-color: var(--line-strong);
+    }
+
+    .note {
+      border-radius: 16px;
+      background: #fafafa;
+      border: 1px solid var(--line);
+      padding: 15px 16px;
+      color: var(--ink-2);
+      margin-bottom: 18px;
+    }
+
+    .note strong {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .note-row {
+      display: grid;
+      grid-template-columns: 8px 1fr;
+      gap: 9px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+      margin-top: 7px;
+    }
+
+    .note-row::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      margin-top: 8px;
+      border-radius: 50%;
+      background: var(--ink);
+      opacity: .65;
+    }
+
+    .camera {
+      height: 326px;
+      border-radius: 16px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 52% 24%, rgba(255,255,255,.08), transparent 30%),
+        linear-gradient(180deg, var(--camera-2), var(--camera));
+      position: relative;
+      margin-bottom: 16px;
+      border: 1px solid #202520;
+    }
+
+    .tracking {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .88);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    .pose-line {
+      position: absolute;
+      height: 3px;
+      border-radius: 999px;
+      background: #eef1ee;
+      transform-origin: left center;
+      opacity: .92;
+    }
+
+    .pose-line.attention {
+      background: #eef1ee;
+      opacity: .58;
+      height: 4px;
+    }
+
+    .joint {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #eef1ee;
+      box-shadow: 0 0 0 5px rgba(255, 255, 255, .11);
+    }
+
+    .l1 { left: 148px; top: 52px; width: 80px; transform: rotate(113deg); }
+    .l2 { left: 113px; top: 132px; width: 78px; transform: rotate(43deg); }
+    .l3 { left: 171px; top: 188px; width: 76px; transform: rotate(-42deg); }
+    .l4 { left: 232px; top: 132px; width: 106px; transform: rotate(97deg); }
+    .l5 { left: 223px; top: 234px; width: 78px; transform: rotate(102deg); }
+    .j1 { left: 144px; top: 48px; }
+    .j2 { left: 109px; top: 128px; }
+    .j3 { left: 167px; top: 184px; }
+    .j4 { left: 228px; top: 128px; }
+    .j5 { left: 219px; top: 230px; }
+    .j6 { left: 208px; top: 308px; }
+  </style>
+</head>
+<body>
+  <main class="canvas">
+    <div class="mast">
+      <div><span class="brand">Health Trainer</span> · result flow wireframe</div>
+      <div>Overview first · set detail on demand · monochrome theme</div>
+    </div>
+
+    <section class="frames">
+      <article class="phone detail">
+        <div class="status"><span>9:41</span><span>LTE 100%</span></div>
+        <div class="screen">
+          <header class="top">
+            <div>
+              <p class="eyebrow">오늘의 운동 완료</p>
+              <h1>Squat 요약</h1>
+            </div>
+            <div class="ghost">↺</div>
+          </header>
+
+          <section class="hero-score">
+            <div class="score">82</div>
+            <p>3세트 중 마지막 세트에서 자세 유지가 조금 떨어졌습니다.</p>
+          </section>
+
+          <div class="rule"></div>
+
+          <section class="summary-grid">
+            <div class="mini-stat"><strong>30회</strong><span>총 반복</span></div>
+            <div class="mini-stat"><strong>24회</strong><span>안정</span></div>
+            <div class="mini-stat"><strong>6회</strong><span>확인</span></div>
+          </section>
+
+          <p class="section">세트별 요약</p>
+          <section class="set-list">
+            <div class="set-card">
+              <div class="set-head"><strong>1세트</strong><span>86점 · 안정</span></div>
+              <svg class="spark" viewBox="0 0 300 34" aria-hidden="true">
+                <path class="base" d="M0 25H300" />
+                <path d="M4 22L38 18L72 17L106 15L140 16L174 14L208 13L242 12L296 11" />
+              </svg>
+            </div>
+
+            <div class="set-card active">
+              <div class="set-head"><strong>2세트</strong><span>82점 · 확인</span></div>
+              <svg class="spark" viewBox="0 0 300 34" aria-hidden="true">
+                <path class="base" d="M0 25H300" />
+                <path d="M4 15L38 16L72 18L106 15L140 19L174 17L208 22L242 20L296 23" />
+              </svg>
+            </div>
+
+            <div class="set-card">
+              <div class="set-head"><strong>3세트</strong><span>76점 · 피로 누적</span></div>
+              <svg class="spark" viewBox="0 0 300 34" aria-hidden="true">
+                <path class="base" d="M0 25H300" />
+                <path d="M4 14L38 15L72 18L106 21L140 20L174 24L208 26L242 25L296 29" />
+              </svg>
+            </div>
+          </section>
+
+          <div class="button">2세트 상세 보기</div>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="status"><span>9:41</span><span>LTE 100%</span></div>
+        <div class="screen">
+          <header class="top">
+            <div>
+              <p class="eyebrow">2세트 상세</p>
+              <h2>회차별 추세</h2>
+            </div>
+            <div class="ghost">←</div>
+          </header>
+
+          <nav class="tabs">
+            <div class="tab active">안정도</div>
+            <div class="tab">깊이</div>
+            <div class="tab">상체</div>
+          </nav>
+
+          <section class="chart-card">
+            <div class="chart-head">
+              <strong>회차별 자세 안정도</strong>
+              <span>1회 → 10회</span>
+            </div>
+            <svg class="chart" viewBox="0 0 360 188" aria-hidden="true">
+              <line class="grid-line" x1="30" y1="28" x2="342" y2="28" />
+              <line class="grid-line" x1="30" y1="82" x2="342" y2="82" />
+              <line class="grid-line" x1="30" y1="136" x2="342" y2="136" />
+              <text class="axis" x="0" y="32">90</text>
+              <text class="axis" x="0" y="86">75</text>
+              <text class="axis" x="0" y="140">60</text>
+              <path class="trend secondary" d="M34 46L68 44L102 52L136 50L170 58L204 61L238 68L272 70L306 78L340 82" />
+              <path class="trend" d="M34 42L68 47L102 65L136 50L170 72L204 58L238 91L272 74L306 82L340 96" />
+              <circle class="point" cx="102" cy="65" r="4.5" />
+              <circle class="point" cx="238" cy="91" r="4.5" />
+              <text class="axis" x="28" y="174">1</text>
+              <text class="axis" x="102" y="174">3</text>
+              <text class="axis" x="170" y="174">5</text>
+              <text class="axis" x="238" y="174">7</text>
+              <text class="axis" x="332" y="174">10</text>
+            </svg>
+            <div class="legend"><span>2세트</span><span>평균 추세</span></div>
+          </section>
+
+          <section class="bars">
+            <div class="bar-row"><span>깊이</span><div class="track"><div class="fill" style="width:72%"></div></div><strong>72</strong></div>
+            <div class="bar-row"><span>상체</span><div class="track"><div class="fill" style="width:81%"></div></div><strong>81</strong></div>
+            <div class="bar-row"><span>무릎</span><div class="track"><div class="fill" style="width:90%"></div></div><strong>90</strong></div>
+          </section>
+
+          <p class="section">눈에 띄는 회차</p>
+          <section class="issues">
+            <div class="issue"><strong>3회차 · 깊이 부족</strong><span>확인</span></div>
+            <div class="issue strong"><strong>7회차 · 자세 흔들림</strong><span>우선</span></div>
+            <div class="issue"><strong>10회차 · 피로 누적</strong><span>확인</span></div>
+          </section>
+
+          <section class="note">
+            <strong>코치 노트</strong>
+            <div class="note-row">후반 7회차부터 안정도가 내려갑니다.</div>
+            <div class="note-row">다음 세트는 8회 기준으로 끊어도 좋습니다.</div>
+            <div class="note-row">깊이보다 하강 속도 유지가 우선입니다.</div>
+          </section>
+
+          <div class="button">문제 회차 리플레이</div>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="status"><span>9:41</span><span>LTE 100%</span></div>
+        <div class="screen">
+          <header class="top">
+            <div>
+              <p class="eyebrow">2세트 · 7회차</p>
+              <h2>Replay</h2>
+            </div>
+            <div class="ghost">←</div>
+          </header>
+
+          <div class="camera">
+            <div class="tracking">자세 흔들림 구간</div>
+            <span class="pose-line l1"></span><span class="pose-line l2"></span><span class="pose-line l3"></span>
+            <span class="pose-line l4 attention"></span><span class="pose-line l5"></span>
+            <span class="joint j1"></span><span class="joint j2"></span><span class="joint j3"></span>
+            <span class="joint j4"></span><span class="joint j5"></span><span class="joint j6"></span>
+          </div>
+
+          <section class="summary-grid">
+            <div class="mini-stat"><strong>68</strong><span>안정도</span></div>
+            <div class="mini-stat"><strong>0.7s</strong><span>하강</span></div>
+            <div class="mini-stat"><strong>낮음</strong><span>깊이</span></div>
+          </section>
+
+          <p class="section">이 회차에서 보인 점</p>
+          <section class="issues">
+            <div class="issue strong"><strong>상체 각도 흔들림</strong><span>우선</span></div>
+            <div class="issue"><strong>최저점 짧음</strong><span>확인</span></div>
+            <div class="issue"><strong>무릎 정렬은 안정</strong><span>유지</span></div>
+          </section>
+
+          <section class="note">
+            <strong>다음 동작 팁</strong>
+            <div class="note-row">상체를 세우려 하기보다 복압을 먼저 유지하세요.</div>
+            <div class="note-row">최저점에서 잠깐 멈추면 깊이 점검이 쉽습니다.</div>
+          </section>
+
+          <div class="button">전체 요약으로 돌아가기</div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

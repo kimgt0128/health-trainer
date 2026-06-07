@@ -2,6 +2,7 @@ package com.healthtrainer.app.ml
 
 import com.google.common.truth.Truth.assertThat
 import com.healthtrainer.core.exercise.ExerciseType
+import com.healthtrainer.core.features.PlankFeatureExtractor
 import com.healthtrainer.core.features.PushUpFeatureExtractor
 import com.healthtrainer.core.features.SquatFeatureExtractor
 import org.junit.Test
@@ -26,11 +27,18 @@ class FormClassifierRegistryTest {
         assertThat(FormClassifierRegistry.repExtractorFor(ExerciseType.SQUAT)).isNull()
     }
 
-    /** No model registered -> both extractors null -> the pipeline runs rules-only for this exercise. */
+    /** Plank is a HOLD -> frame-level extractor (like squat), no rep extractor. */
     @Test
-    fun plank_hasNoModel_soBothExtractorsAreNull() {
-        assertThat(FormClassifierRegistry.extractorFor(ExerciseType.PLANK)).isNull()
+    fun plank_usesFrameLevelExtractor_andHasNoRepExtractor() {
+        assertThat(FormClassifierRegistry.extractorFor(ExerciseType.PLANK))
+            .isInstanceOf(PlankFeatureExtractor::class.java)
         assertThat(FormClassifierRegistry.repExtractorFor(ExerciseType.PLANK)).isNull()
+    }
+
+    @Test
+    fun plank_labels_areThreePostureClasses_inOrder() {
+        assertThat(FormClassifierRegistry.PLANK_LABELS)
+            .containsExactly("hips_low", "correct", "hips_high").inOrder()
     }
 
     @Test

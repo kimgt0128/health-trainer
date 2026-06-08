@@ -8,13 +8,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,7 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
 import com.healthtrainer.app.pose.PoseLandmarkerHelper
 import com.healthtrainer.app.replay.SkeletonReplayStore
@@ -34,6 +35,11 @@ import com.healthtrainer.app.ui.ReportPresentation
 import com.healthtrainer.app.ui.ResultScreen
 import com.healthtrainer.app.ui.SetDetailScreen
 import com.healthtrainer.app.replay.Skeleton3DViewer
+import com.healthtrainer.app.ui.components.PrimaryButton
+import com.healthtrainer.app.ui.components.TokenText
+import com.healthtrainer.app.ui.theme.Dimens
+import com.healthtrainer.app.ui.theme.Hue
+import com.healthtrainer.app.ui.theme.Type
 
 /**
  * App entry point. Hosts the [MainViewModel], requests the CAMERA permission, wires the
@@ -188,7 +194,22 @@ private fun replayFramesForSet(
 
 @Composable
 private fun CameraPermissionRationale(onRequest: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Button(onClick = onRequest) { Text("카메라 권한을 허용해 주세요") }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(Dimens.screenPad),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        TokenText("자세 추적", Type.eyebrow, Hue.muted)
+        TokenText("카메라 권한이 필요해요", Type.h2, Hue.ink)
+        Spacer(Modifier.height(Dimens.gapSmall))
+        TokenText(
+            "자세를 추정하려면 카메라 접근을 허용해 주세요.",
+            Type.body,
+            Hue.muted,
+            keepAll = true,
+            align = TextAlign.Center,
+        )
+        Spacer(Modifier.height(Dimens.gapLarge))
+        PrimaryButton(text = "카메라 권한 허용", onClick = onRequest)
     }
 }

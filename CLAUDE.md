@@ -28,6 +28,7 @@
 | 2026-06-05 | ml-data-engineer에 "데이터셋 inspect-우선" 원칙 추가 | agents/ml-data-engineer.md, docs/LESSONS.md | 푸쉬업 데이터셋을 feature CSV로 가정해 전면 재작업 → 어댑터 작성 전 실제 구조 확인 강제 |
 | 2026-06-05 | 디자인 시스템 + UI 라우팅 (`rules/design-system.md` 신설, CLAUDE.md/agents 라우팅, :core scoring/SessionSummary, 와이어프레임 결과 플로우 UI) | rules/, CLAUDE.md, agents/android-*, :core(scoring), :app(ui/theme·components·화면) | 결과 리포트를 룰 측정값에서 정직 파생; UI 작업 시 디자인 규칙 일관 적용 |
 | 2026-06-05 | mvp-pipeline 워크트리 생성에 "메인 repo 절대경로" 원칙 명시 | skills/mvp-pipeline, docs/LESSONS.md | 워크트리 안 `git rev-parse --show-toplevel`이 현재 워크트리를 반환해 워크트리 중첩 생성된 실수 되먹임 |
+| 2026-06-08 | 플랭크 보조 모델 완성·통합 (데이터 감사 → 회전/스케일 정규화 body-frame 8-feature 계약 → `:core` PlankFeatureExtractor → Keras MLP macro-F1 0.77 → `:app` hold-assist 750ms 배선 → `.tflite` 앱 통합) + `docs/STATUS.md` 신설 | :core, :app, ml/, docs | 플랭크 optional assist; 라벨이 어깨-엉덩이-무릎각이라 무릎 feature 필수(0.57→0.77); PR #17 |
 
 ## 작업 규약
 - **PR 제목과 본문은 한글로 작성한다.** (`gh pr create`의 `--title`/`--body` 모두 한글.) 코드 식별자·경로·지표·`feat:`/`fix:` 같은 conventional-commit 접두사는 영어 그대로 두되, 설명 문장은 한글로 쓴다.

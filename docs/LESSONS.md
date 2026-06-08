@@ -2,6 +2,18 @@
 
 `compound-engineering` 스킬의 기록부. 실수·교정·발견을 근본 원인까지 적고, 어떤 규약/하네스/테스트로 재발을 막았는지(되먹임)를 남긴다. 최신이 위로.
 
+### 2026-06-08 — 바이너리 산출물(.tflite)을 손으로 base64 전사하면 깨진다
+- 무엇: Drive의 `plank_form.tflite`(6120B)를 앱 에셋에 넣으려 MCP `download_file_content`의 base64를 Write로 재현 → 길이가 8160이어야 하는데 8161(+1), 단일-문자 복원은 가중치 영역이라 후보 다수·결정 불가, 재시도해도 오류 2개 이상.
+- 근본 원인: 긴 random base64는 LLM 토큰 재현에서 반드시 오류가 섞인다. 코드/JSON은 계약·테스트로 자기검증되지만 바이너리(특히 weight)는 자기검증 불가 → 손상 모델은 무모델보다 나쁨(틀린 힌트를 사용자에게 보임).
+- 고친 방법: 사용자가 Colab에서 원본 sha256 한 줄 출력 → 가능한 후보 해시와 매칭(불일치 확인) → Drive에서 직접 다운로드로 배치 → 배치본 sha256 재검증 + `:app:assembleDebug` + APK 패키징(`assets/models/plank_form.tflite`) 확인.
+- 되먹임: 메모리 `binary-artifact-transfer` 신설. 원칙 — 바이너리는 손 전사 금지, 체크섬 검증 또는 직접 다운로드, 미검증 바이너리는 앱에 넣지 않기.
+
+### 2026-06-08 — 모델이 약하면 "라벨이 어떻게 만들어졌는지"를 먼저 봐라
+- 무엇: 플랭크 보조 모델 첫 학습 macro-F1 0.57(기준 0.75 미달). hips_low 과예측·클래스 분리 약함.
+- 근본 원인: feature를 앱 `PlankRule`에 맞춰 **발목 기반**으로 설계했는데, 데이터(Vollkorn01)의 **정답 라벨은 "어깨-엉덩이-무릎" 각도**로 생성된 것. 정작 라벨을 정의한 무릎 관절을 feature에서 빠뜨림.
+- 고친 방법: 로컬 sklearn으로 무릎 feature 추가 효과를 먼저 측정(5→8 feature: HGB 5-fold CV 0.61→0.79) → 계약을 8-feature(`knee_line_angle` 등)로 확장, ml↔:core 동시 갱신 → 재학습 MLP 0.767/0.773으로 기준 통과.
+- 되먹임: feature 설계 전 "데이터의 라벨이 어떤 관절/신호에서 파생됐는지" 확인. 가설은 통념 아닌 로컬 측정으로 검증("측정 > 추측" 재확인).
+
 ### 2026-06-05 — 워크트리 안에서 `git rev-parse --show-toplevel`로 워크트리를 중첩 생성
 - 무엇: 한 슬라이스 워크트리 안에서 `cd "$(git rev-parse --show-toplevel)"` 후 `git worktree add .claude/worktrees/B`를 실행 → show-toplevel이 메인 repo가 아니라 *현재 워크트리* 루트를 반환해, B가 A 안에 중첩 생성됨(`…/pushup-app-finish/.claude/worktrees/pushup-tflite-export`). 작업·테스트·커밋·푸시는 무사했지만 정리가 번거롭고 부모 워크트리 제거가 막힘.
 - 근본 원인: `git rev-parse --show-toplevel`은 "현재" 워크트리 기준이라 워크트리 안에서 메인 repo 경로 대용으로 쓰면 틀린다. shell cwd가 직전 슬라이스 작업으로 워크트리 안에 머물러 있던 것도 한몫.

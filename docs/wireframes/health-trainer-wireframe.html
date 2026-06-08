@@ -641,6 +641,33 @@
       box-shadow: 0 0 0 5px rgba(255, 255, 255, .11);
     }
 
+    .replay-pose {
+      position: absolute;
+      inset: 28px 28px 22px;
+      width: calc(100% - 56px);
+      height: calc(100% - 50px);
+      overflow: visible;
+    }
+
+    .replay-pose .bone {
+      stroke: #eef1ee;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: .92;
+    }
+
+    .replay-pose .bone.warn {
+      opacity: .52;
+      stroke-width: 6;
+    }
+
+    .replay-pose .joint-dot {
+      fill: #eef1ee;
+      stroke: rgba(255,255,255,.18);
+      stroke-width: 8;
+    }
+
     .l1 { left: 148px; top: 52px; width: 80px; transform: rotate(113deg); }
     .l2 { left: 113px; top: 132px; width: 78px; transform: rotate(43deg); }
     .l3 { left: 171px; top: 188px; width: 76px; transform: rotate(-42deg); }
@@ -706,8 +733,8 @@
           </div>
 
           <section class="live-stats">
-            <p class="live-reps">반복 횟수: 0</p>
-            <p class="live-state">자세 인식 대기</p>
+            <p class="live-reps">반복 횟수: 3</p>
+            <p class="live-state">자세 인식 중</p>
           </section>
 
           <div class="actions">
@@ -851,10 +878,25 @@
 
           <div class="camera">
             <div class="tracking">자세 흔들림 구간</div>
-            <span class="pose-line l1"></span><span class="pose-line l2"></span><span class="pose-line l3"></span>
-            <span class="pose-line l4 attention"></span><span class="pose-line l5"></span>
-            <span class="joint j1"></span><span class="joint j2"></span><span class="joint j3"></span>
-            <span class="joint j4"></span><span class="joint j5"></span><span class="joint j6"></span>
+            <svg class="replay-pose" viewBox="0 0 300 250" aria-hidden="true">
+              <line class="bone" x1="164" y1="54" x2="150" y2="82" />
+              <line class="bone warn" x1="150" y1="82" x2="96" y2="156" />
+              <line class="bone" x1="96" y1="156" x2="168" y2="174" />
+              <line class="bone" x1="168" y1="174" x2="126" y2="224" />
+              <line class="bone warn" x1="96" y1="156" x2="158" y2="178" />
+              <line class="bone warn" x1="158" y1="178" x2="118" y2="224" />
+              <line class="bone warn" x1="150" y1="82" x2="192" y2="97" />
+              <line class="bone warn" x1="192" y1="97" x2="224" y2="106" />
+              <circle class="joint-dot" cx="164" cy="54" r="7" />
+              <circle class="joint-dot" cx="150" cy="82" r="7" />
+              <circle class="joint-dot" cx="96" cy="156" r="7" />
+              <circle class="joint-dot" cx="168" cy="174" r="7" />
+              <circle class="joint-dot" cx="126" cy="224" r="7" />
+              <circle class="joint-dot" cx="158" cy="178" r="7" />
+              <circle class="joint-dot" cx="118" cy="224" r="7" />
+              <circle class="joint-dot" cx="192" cy="97" r="7" />
+              <circle class="joint-dot" cx="224" cy="106" r="7" />
+            </svg>
           </div>
 
           <section class="summary-grid">

@@ -74,6 +74,13 @@ class FeedbackTextTest {
     }
 
     @Test
+    fun modelFormLabel_plankClasses_areConservativeKorean() {
+        // Plank assist surfaces sag/pike as a soft "확인 필요" hint, never a hard verdict.
+        assertThat(FeedbackText.modelFormLabel("hips_low")).isEqualTo("엉덩이 처짐 확인 필요 (모델)")
+        assertThat(FeedbackText.modelFormLabel("hips_high")).isEqualTo("엉덩이 솟음 확인 필요 (모델)")
+    }
+
+    @Test
     fun modelFormLabel_unknownLabel_fallsBackToRawPlusModel() {
         // Forward-compatible: a re-exported model with a new class never crashes the UI.
         assertThat(FeedbackText.modelFormLabel("brand_new_class")).isEqualTo("brand_new_class (모델)")

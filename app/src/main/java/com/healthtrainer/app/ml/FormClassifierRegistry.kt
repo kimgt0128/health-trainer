@@ -3,6 +3,7 @@ package com.healthtrainer.app.ml
 import android.content.Context
 import com.healthtrainer.core.exercise.ExerciseType
 import com.healthtrainer.core.features.ExerciseFeatureExtractor
+import com.healthtrainer.core.features.PlankFeatureExtractor
 import com.healthtrainer.core.features.PushUpFeatureExtractor
 import com.healthtrainer.core.features.RepFeatureExtractor
 import com.healthtrainer.core.features.SquatFeatureExtractor
@@ -80,6 +81,16 @@ object FormClassifierRegistry {
     const val PUSH_UP_MODEL_ASSET = "models/pushup_form.tflite"
 
     /**
+     * The 3 plank posture classes, in the model's output order. The model is an OPTIONAL assist
+     * (throttled during the hold); `hips_low` / `hips_high` surface as hints, `correct` is suppressed
+     * by the fusion gate. Plank stays rule-based — the model never affects validity.
+     */
+    val PLANK_LABELS: List<String> = listOf("hips_low", "correct", "hips_high")
+
+    /** Asset path of the plank form model (gitignored binary; absent until the ml track drops it). */
+    const val PLANK_MODEL_ASSET = "models/plank_form.tflite"
+
+    /**
      * The registry table. ONE entry per exercise that has a model. Add a line here to extend.
      * Exercises absent from this map have no classifier (rules-only) — that is the default.
      */
@@ -94,7 +105,11 @@ object FormClassifierRegistry {
             modelAsset = PUSH_UP_MODEL_ASSET,
             labels = PUSH_UP_LABELS,
         ),
-        // PLANK: no model yet -> not registered -> forExercise returns null (rules only).
+        ExerciseType.PLANK to Spec(
+            extractor = PlankFeatureExtractor(),        // frame-level, throttled during the hold
+            modelAsset = PLANK_MODEL_ASSET,
+            labels = PLANK_LABELS,
+        ),
     )
 
     /**

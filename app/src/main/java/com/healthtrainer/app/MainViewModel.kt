@@ -185,8 +185,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Form-model ASSIST: only a just-closed rep yields a (possibly null) verdict. Latch it so the
         // hint persists until the NEXT rep closes; on a non-boundary frame keep the prior label. This
         // is advisory only — it never touches repCount/validity (still outcome.currentRepCount).
-        val nextFormLabel =
-            if (outcome.closedRep != null) outcome.formAssist?.label else uiState.modelFormLabel
+        // Rep exercises latch on rep close; hold exercises (plank) update whenever the throttled
+        // hold-assist hint fires. Otherwise keep the prior label.
+        val nextFormLabel = when {
+            outcome.closedRep != null -> outcome.formAssist?.label
+            outcome.formAssist != null -> outcome.formAssist.label
+            else -> uiState.modelFormLabel
+        }
 
         // MediaPipe callback is off-main; publish Compose state on the main dispatcher.
         viewModelScope.launch(Dispatchers.Main) {

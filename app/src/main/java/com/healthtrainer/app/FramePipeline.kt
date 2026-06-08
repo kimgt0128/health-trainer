@@ -69,6 +69,9 @@ class FramePipeline(
     var setTracker: SetTracker = SetTracker(rule)
         private set
 
+    /** Last timestamp a HOLD-exercise assist classify ran, to throttle inference (see [classifyHoldAssist]). */
+    private var lastHoldAssistAtMs: Long? = null
+
     /** The active rule's tracking mode is a hold (vs. rep-counted). Drives the UI hold indicator. */
     val isHold: Boolean
         get() = rule.mode == ExerciseMode.HOLD
@@ -77,6 +80,7 @@ class FramePipeline(
     fun reset(newRule: ExerciseRule = rule) {
         rule = newRule
         setTracker = SetTracker(newRule)
+        lastHoldAssistAtMs = null
     }
 
     fun startSet() = setTracker.startSet()
@@ -103,9 +107,15 @@ class FramePipeline(
         val feedback = rule.evaluate(normFrame)                 // live overlay color only (pure)
         val closedRep = if (countReps) setTracker.onFrame(normFrame) else null
 
-        // Form-model ASSIST: run ONLY when a rep just closed (off the per-frame hot path). Reuses the
-        // already-normalized frame; features come from :core. Null unless it passes the fusion gate.
-        val formAssist = if (closedRep != null) classifyAssist(normFrame, closedRep) else null
+        // Form-model ASSIST. Rep exercises: run ONLY when a rep just closed (off the hot path). Hold
+        // exercises (plank close no reps): run a THROTTLED frame classify while the hold set is active.
+        // Either way the model is a secondary signal — never rep counting/validity. Null unless it
+        // passes the fusion gate.
+        val formAssist = when {
+            closedRep != null -> classifyAssist(normFrame, closedRep)
+            countReps && isHold -> classifyHoldAssist(normFrame, timestampMs)
+            else -> null
+        }
 
         return FrameOutcome(
             feedback = feedback,
@@ -141,6 +151,21 @@ class FramePipeline(
         return fuseAssist(classifier.classify(features))
     }
 
+    /**
+     * HOLD-exercise assist (plank): a plank closes no reps, so instead of a rep-boundary trigger we
+     * classify the live normalized frame at most once per [HOLD_ASSIST_INTERVAL_MS] (off the hot
+     * path). Frame-level extractor only. Returns a hint past the fusion gate, else `null`.
+     */
+    private fun classifyHoldAssist(normFrame: PoseFrame, timestampMs: Long): FormPrediction? {
+        val classifier = formClassifier ?: return null
+        val extractor = featureExtractor ?: return null
+        val last = lastHoldAssistAtMs
+        if (last != null && timestampMs - last < HOLD_ASSIST_INTERVAL_MS) return null
+        lastHoldAssistAtMs = timestampMs
+        val features = extractor.extract(normFrame) ?: return null
+        return fuseAssist(classifier.classify(features))
+    }
+
     companion object {
         /**
          * Minimum model confidence to surface its verdict as an assist hint. Below this the model is
@@ -150,6 +175,12 @@ class FramePipeline(
 
         /** The model's "good form" class — suppressed (it adds no hint beyond what the rules say). */
         const val LABEL_CORRECT = "correct"
+
+        /**
+         * Throttle interval for HOLD-exercise (plank) assist inference. The hold runs for many frames,
+         * so we classify at most this often instead of every frame.
+         */
+        const val HOLD_ASSIST_INTERVAL_MS = 750L
 
         /**
          * The fusion rule, isolated for clarity/testability: a [prediction] becomes an assist hint

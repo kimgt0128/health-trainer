@@ -164,7 +164,7 @@ fun CoachNote(title: String, bullets: List<String>, modifier: Modifier = Modifie
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Color(0xFFFAFAFA))
+            .background(Hue.note)
             .border(BorderStroke(Dimens.border, Hue.line), shape)
             .padding(Dimens.cardPad),
         verticalArrangement = Arrangement.spacedBy(Dimens.gapSmall),

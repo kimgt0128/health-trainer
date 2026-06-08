@@ -27,6 +27,7 @@ object Hue {
     val soft2 = Color(0xFFE9EBE8)      // empty-bar track
     val line = Color(0xFFE0E3DF)       // 1px borders / dividers
     val lineStrong = Color(0xFFCFD4CE) // emphasis border (selected card)
+    val note = Color(0xFFFAFAFA)       // CoachNote card background (§4: "#FAFAFA 카드")
     val camera = Color(0xFF121614)     // replay dark-canvas gradient (top)
     val camera2 = Color(0xFF1E2420)    // replay dark-canvas gradient (bottom)
     val onCamera = Color(0xFFF2F3F1)   // text on the dark replay canvas
@@ -53,6 +54,7 @@ object Type {
     val noteTitle = Spec(14.sp, FontWeight(600)) // coach-note title
     val noteBullet = Spec(13.sp, FontWeight(400))// coach-note bullet row
     val axisTick = Spec(11.sp, FontWeight(600))  // trend-chart end labels
+    val pill = Spec(12.sp, FontWeight(720))      // replay tracking-pill label (§4: "ink 12/720")
 }
 
 /** §3 shape / spacing. */

@@ -1,8 +1,8 @@
 # Health Trainer
 
-![Health Trainer result flow wireframe](docs/wireframes/health-trainer-wireframe.png)
+![Health Trainer demo flow wireframe](docs/wireframes/health-trainer-wireframe.png)
 
-> 운동 후 전체 세트 요약, 세트별 추세 그래프, 문제 회차 리플레이로 이어지는 결과 화면 와이어프레임입니다.
+> 실제 사람이 스쿼트를 하는 카메라 화면에서 관절 좌표를 실시간으로 추정하고, 운동 후 전체 세트 요약, 세트별 추세 그래프, 문제 회차 리플레이로 이어지는 데모 와이어프레임입니다.
 
 Health Trainer는 스마트폰 카메라로 운동 자세를 분석하는 Android 앱입니다. 스쿼트, 푸쉬업, 플랭크를 할 때 사람의 관절 좌표를 실시간으로 추정하고, 그 자세가 기준에 얼마나 맞는지 확인합니다.
 
@@ -457,8 +457,8 @@ cv: group k-fold 평균과 표준편차
 ## 데모 흐름
 
 1. 앱에서 스쿼트를 선택합니다.
-2. 측면 카메라 구도로 정상 스쿼트 1회, 얕은 스쿼트 1회, 정상 스쿼트 1회를 수행합니다.
-3. 화면에서 skeleton overlay와 rep count를 확인합니다.
+2. 측면 카메라 구도로 실제 사람이 스쿼트하는 모습을 보며 skeleton overlay와 rep count를 확인합니다.
+3. 정상 스쿼트 1회, 얕은 스쿼트 1회, 정상 스쿼트 1회를 수행합니다.
 4. 세트 종료 후 `1세트 2회차: 스쿼트 깊이 부족` 기록을 확인합니다.
 5. skeleton replay로 실패 구간을 다시 확인합니다.
 6. 푸쉬업과 플랭크도 같은 구조로 자세를 분석할 수 있음을 보여줍니다.

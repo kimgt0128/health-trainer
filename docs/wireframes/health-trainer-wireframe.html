@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Health Trainer Result Flow</title>
+  <title>Health Trainer Demo Flow</title>
   <style>
     :root {
       --bg: #f7f7f5;
@@ -35,8 +35,8 @@
     }
 
     .canvas {
-      width: min(1280px, 100vw);
-      min-height: 980px;
+      width: min(1680px, 100vw);
+      min-height: 1010px;
       margin: 0 auto;
       padding: 40px 44px 44px;
     }
@@ -59,8 +59,8 @@
 
     .frames {
       display: grid;
-      grid-template-columns: 380px 420px 380px;
-      gap: 28px;
+      grid-template-columns: 360px 380px 420px 360px;
+      gap: 24px;
       align-items: start;
     }
 
@@ -74,6 +74,10 @@
     }
 
     .phone.detail {
+      height: 888px;
+    }
+
+    .phone.live {
       height: 888px;
     }
 
@@ -293,6 +297,32 @@
       box-shadow: 0 1px 2px rgba(16, 18, 17, .08);
     }
 
+    .exercise-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .exercise-tab {
+      height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      background: #fff;
+      font-size: 14px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .exercise-tab.active {
+      color: var(--ink);
+      background: var(--soft);
+      border-color: var(--line-strong);
+    }
+
     .chart-card {
       border: 1px solid var(--line);
       border-radius: 16px;
@@ -486,6 +516,16 @@
       border: 1px solid #202520;
     }
 
+    .camera.live-camera {
+      height: 438px;
+      border-radius: 18px;
+      margin-bottom: 18px;
+      background:
+        linear-gradient(180deg, rgba(18, 22, 20, .08), rgba(18, 22, 20, .34)),
+        url("assets/squat-camera-preview.png") center center / cover;
+      border-color: #2f3530;
+    }
+
     .tracking {
       position: absolute;
       top: 14px;
@@ -497,6 +537,84 @@
       font-size: 12px;
       font-weight: 720;
       white-space: nowrap;
+    }
+
+    .tracking.secondary {
+      top: auto;
+      bottom: 14px;
+      left: 14px;
+      background: rgba(255, 255, 255, .14);
+      color: #eef1ee;
+      border: 1px solid rgba(255, 255, 255, .18);
+    }
+
+    .live-pose {
+      position: absolute;
+      inset: 42px 34px 42px;
+      width: calc(100% - 68px);
+      height: calc(100% - 84px);
+      overflow: visible;
+    }
+
+    .live-pose .bone {
+      stroke: #eef1ee;
+      stroke-width: 5;
+      stroke-linecap: round;
+      opacity: .92;
+    }
+
+    .live-pose .bone.warn {
+      opacity: .5;
+    }
+
+    .live-pose .joint-dot {
+      fill: #eef1ee;
+      stroke: rgba(255,255,255,.22);
+      stroke-width: 8;
+    }
+
+    .live-stats {
+      margin-bottom: 18px;
+    }
+
+    .live-reps {
+      margin: 0 0 8px;
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 820;
+    }
+
+    .live-state {
+      margin: 0;
+      color: var(--ink-2);
+      font-size: 15px;
+      font-weight: 720;
+    }
+
+    .actions {
+      margin-top: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .action {
+      height: 54px;
+      border-radius: 13px;
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      background: #fff;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 780;
+      white-space: nowrap;
+    }
+
+    .action.primary {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
     }
 
     .pose-line {
@@ -539,11 +657,66 @@
 <body>
   <main class="canvas">
     <div class="mast">
-      <div><span class="brand">Health Trainer</span> · result flow wireframe</div>
-      <div>Overview first · set detail on demand · monochrome theme</div>
+      <div><span class="brand">Health Trainer</span> · demo flow wireframe</div>
+      <div>Real-time pose tracking · result summary · set detail · replay</div>
     </div>
 
     <section class="frames">
+      <article class="phone live">
+        <div class="status"><span>9:41</span><span>LTE 100%</span></div>
+        <div class="screen">
+          <header class="top">
+            <div>
+              <p class="eyebrow">실시간 자세 확인</p>
+              <h1>스쿼트</h1>
+            </div>
+            <div class="ghost">●</div>
+          </header>
+
+          <nav class="exercise-tabs" aria-label="운동 선택">
+            <div class="exercise-tab active">스쿼트</div>
+            <div class="exercise-tab">푸쉬업</div>
+            <div class="exercise-tab">플랭크</div>
+          </nav>
+
+          <div class="camera live-camera">
+            <div class="tracking">관절 좌표 추적 중</div>
+            <svg class="live-pose" viewBox="0 0 260 360" aria-hidden="true">
+              <line class="bone" x1="130" y1="96" x2="119" y2="128" />
+              <line class="bone" x1="119" y1="128" x2="86" y2="205" />
+              <line class="bone" x1="86" y1="205" x2="132" y2="246" />
+              <line class="bone" x1="132" y1="246" x2="111" y2="316" />
+              <line class="bone warn" x1="86" y1="205" x2="62" y2="251" />
+              <line class="bone warn" x1="62" y1="251" x2="80" y2="316" />
+              <line class="bone" x1="119" y1="128" x2="166" y2="129" />
+              <line class="bone" x1="166" y1="129" x2="218" y2="130" />
+              <line class="bone warn" x1="122" y1="132" x2="165" y2="135" />
+              <line class="bone warn" x1="165" y1="135" x2="214" y2="136" />
+              <circle class="joint-dot" cx="130" cy="96" r="7" />
+              <circle class="joint-dot" cx="119" cy="128" r="7" />
+              <circle class="joint-dot" cx="86" cy="205" r="7" />
+              <circle class="joint-dot" cx="132" cy="246" r="7" />
+              <circle class="joint-dot" cx="111" cy="316" r="7" />
+              <circle class="joint-dot" cx="62" cy="251" r="7" />
+              <circle class="joint-dot" cx="80" cy="316" r="7" />
+              <circle class="joint-dot" cx="166" cy="129" r="7" />
+              <circle class="joint-dot" cx="218" cy="130" r="7" />
+            </svg>
+            <div class="tracking secondary">무릎 각도 · 깊이 확인</div>
+          </div>
+
+          <section class="live-stats">
+            <p class="live-reps">반복 횟수: 0</p>
+            <p class="live-state">자세 인식 대기</p>
+          </section>
+
+          <div class="actions">
+            <div class="action primary">세트 시작</div>
+            <div class="action">운동 완료</div>
+          </div>
+        </div>
+      </article>
+
       <article class="phone detail">
         <div class="status"><span>9:41</span><span>LTE 100%</span></div>
         <div class="screen">

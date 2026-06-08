@@ -37,7 +37,7 @@ Health Trainer를 "체계적으로 진행한 프로젝트"로 만드는 워크�
 ## 슬라이스 파이프라인 (각 브랜치에서)
 **실행 모드:** 전문가 풀(슬라이스 성격에 맞는 에이전트 dispatch) + 생성-검증.
 
-1. **브랜치/워크트리 생성** — `superpowers:using-git-worktrees`로 `mvp-N-이름` 격리 작업공간 확보. (main은 항상 깨끗하게 유지)
+1. **브랜치/워크트리 생성** — `superpowers:using-git-worktrees`로 `mvp-N-이름` 격리 작업공간 확보. (main은 항상 깨끗하게 유지) **워크트리/repo-level git 작업은 메인 repo 절대경로로 한다**(`git -C /abs/main worktree add …`). 워크트리 안에서 `git rev-parse --show-toplevel`은 *현재 워크트리* 루트를 반환하므로 메인 repo 경로 대용으로 쓰면 워크트리가 중첩 생성된다(LESSONS 2026-06-05).
 2. **설계** — `android-architect`로 `_workspace/mvp-N-plan.md` 작성(파일 목록·단계·검증 명령). 범위가 명확하면 생략 가능.
 3. **구현:**
    - `:core` 슬라이스 → `kotlin-tdd-engineer` (RED→GREEN→REFACTOR, 실제 `:core:test` green)

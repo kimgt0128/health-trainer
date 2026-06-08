@@ -4,6 +4,22 @@
 
 > 실제 사람이 스쿼트를 하는 카메라 화면에서 관절 좌표를 실시간으로 추정하고, 운동 후 전체 세트 요약, 세트별 추세 그래프, 문제 회차 리플레이로 이어지는 데모 와이어프레임입니다.
 
+<table>
+  <tr>
+    <td align="center"><strong>양호한 자세</strong></td>
+    <td align="center"><strong>나쁜 자세</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/demo/good-posture.gif" width="220" alt="양호한 스쿼트 자세 실시간 추적 데모" /></td>
+    <td align="center"><img src="docs/demo/bad-posture.gif" width="220" alt="나쁜 스쿼트 자세 실시간 추적 데모" /></td>
+  </tr>
+</table>
+
+<p align="center">
+  <strong>리플레이</strong><br />
+  <img src="docs/demo/replay.gif" width="240" alt="스쿼트 자세 리플레이 데모" />
+</p>
+
 Health Trainer는 스마트폰 카메라로 운동 자세를 분석하는 Android 앱입니다. 스쿼트, 푸쉬업, 플랭크를 할 때 사람의 관절 좌표를 실시간으로 추정하고, 그 자세가 기준에 얼마나 맞는지 확인합니다.
 
 이 앱은 "운동을 열심히 하고 있는데, 내가 지금 제대로 하고 있는 걸까?"라는 고민에서 시작했습니다. 헬스장에서든 집에서든 운동을 하다 보면 횟수는 채울 수 있지만, 무릎이 안으로 말리는지, 푸쉬업 때 허리가 처지는지, 스쿼트 깊이가 충분한지는 혼자 판단하기 어렵습니다. 그래서 카메라와 컴퓨터 비전 기술을 이용해 내 자세를 다시 보고, 어떤 회차에서 자세가 흔들렸는지 알 수 있는 앱을 만들고 싶었습니다.

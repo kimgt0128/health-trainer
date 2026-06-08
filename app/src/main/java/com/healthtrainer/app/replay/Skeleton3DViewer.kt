@@ -79,13 +79,21 @@ fun Skeleton3DViewer(
 
     val scroll = rememberScrollState()
 
+    // Real set·rep locator for the eyebrow (from the scored rep, else the first frame). Wireframe
+    // Replay shows "2세트 · 7회차" above the title — honest, both derive from the same rep numbering.
+    val locator = repScore
+        ?.takeIf { it.setNo > 0 && it.repNo > 0 }
+        ?.let { "${it.setNo}세트 · ${it.repNo}회차" }
+        ?: frames.firstOrNull()?.let { "${it.setNo}세트 · ${it.repNo}회차" }
+        ?: "자세 다시보기"
+
     Column(modifier = modifier.fillMaxSize().padding(horizontal = Dimens.screenPad)) {
         Column(modifier = Modifier.weight(1f).verticalScroll(scroll)) {
             Spacer(Modifier.height(Dimens.gapLarge))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 GhostButton(glyph = "←", onClick = onBack)
                 Column(modifier = Modifier.padding(start = Dimens.gap)) {
-                    TokenText("자세 다시보기", Type.eyebrow, Hue.muted)
+                    TokenText(locator, Type.eyebrow, Hue.muted)
                     TokenText("회차 리플레이", Type.h2, Hue.ink)
                 }
             }

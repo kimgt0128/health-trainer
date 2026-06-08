@@ -5,17 +5,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.healthtrainer.app.ui.theme.Dimens
 import com.healthtrainer.app.ui.theme.Hue
+import com.healthtrainer.app.ui.theme.Type
 
 /**
  * §4 ReplayCanvas — the dark "camera" chrome for the replay: a vertical camera-gradient surface with
@@ -50,7 +48,7 @@ fun ReplayCanvas(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text = pill, color = Hue.ink, fontSize = 12.sp, fontWeight = FontWeight(720))
+            TokenText(text = pill, spec = Type.pill, color = Hue.ink, maxLines = 1)
         }
     }
 }

@@ -72,16 +72,17 @@ Health Trainer는 스마트폰 카메라로 운동 자세를 분석하는 Androi
 
 앱은 CameraX로 카메라 프레임을 받고, MediaPipe Pose Landmarker로 사람의 관절 위치를 추정합니다. MediaPipe는 몸의 주요 지점을 33개 landmark로 반환합니다.
 
-```text
-Camera frame
--> MediaPipe Pose Landmarker
--> 33 body landmarks
--> landmark visibility check
--> landmark normalization
--> angle / alignment calculation
--> exercise rule engine
--> rep and set tracker
--> real-time feedback
+```mermaid
+flowchart TD
+    A["Camera frame<br/>카메라 프레임"] --> B["MediaPipe Pose Landmarker<br/>사람 관절 위치 추정"]
+    B --> C["33 body landmarks<br/>몸 주요 관절 좌표"]
+    C --> D{"Landmark visibility check<br/>관절이 충분히 보이는가?"}
+    D -- "낮음" --> E["판정 보류<br/>LOW_CONFIDENCE"]
+    D -- "충분" --> F["Landmark normalization<br/>골반 중심·어깨 너비 기준 정규화"]
+    F --> G["Angle / alignment calculation<br/>무릎 각도·팔꿈치 각도·몸통 정렬 계산"]
+    G --> H["Exercise rule engine<br/>운동별 자세 기준 적용"]
+    H --> I["Rep and set tracker<br/>반복 횟수·세트·실패 회차 기록"]
+    I --> J["Real-time feedback<br/>화면 피드백 표시"]
 ```
 
 화면에 그리는 skeleton에는 image coordinate를 사용하고, 자세 계산과 리플레이에는 world coordinate를 사용합니다. 관절 visibility가 낮으면 자세를 단정하지 않고 판정을 보류합니다. 잘못 잡힌 좌표 하나로 사용자의 자세를 틀렸다고 말하지 않기 위해서입니다.
